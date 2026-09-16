@@ -5,7 +5,6 @@ import DashboardLayout from '../../components/DashboardLayout';
 import { useApp } from '../../contexts/AppContext';
 import { StatsCard, StatusBadge, Modal, ConfirmDialog, showToast, EmptyState, SearchInput } from '../../components/UI';
 import { JobDrive, Application, TestQuestion } from '../../types';
-import { sampleTestQuestions } from '../../data/sampleData';
 
 const navItems = [
   { label: 'Dashboard', path: '/student/dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
@@ -151,14 +150,18 @@ function JobDrivesPage() {
     };
   };
 
-  const handleApply = () => {
+  const handleApply = async () => {
     if (!eligibilityResult?.eligible || !selectedDrive || !currentUser) return;
-    const app = addApplication({ studentId: currentStudent.id, jobDriveId: selectedDrive.id, status: 'APPLIED' });
-    addNotification(currentUser.id, 'Application Submitted', `Your application for ${selectedDrive.jobRole} at ${selectedDrive.companyName} has been submitted.`, 'success');
-    showToast('Application submitted successfully!', 'success');
-    setShowApplyModal(false);
-    setSelectedDrive(null);
-    setEligibilityResult(null);
+    const app = await addApplication({ studentId: currentStudent.id, jobDriveId: selectedDrive.id, status: 'APPLIED' });
+    if (app) {
+      await addNotification(currentUser.id, 'Application Submitted', `Your application for ${selectedDrive.jobRole} at ${selectedDrive.companyName} has been submitted.`, 'success');
+      showToast('Application submitted successfully!', 'success');
+      setShowApplyModal(false);
+      setSelectedDrive(null);
+      setEligibilityResult(null);
+    } else {
+      showToast('Failed to submit application. You may have already applied.', 'error');
+    }
   };
 
   return (
@@ -359,7 +362,7 @@ function ApplicationsPage() {
 }
 
 function TestsPage() {
-  const { currentStudent, applications, jobDrives, addTestResult, updateApplicationStatus, addNotification, currentUser } = useApp();
+  const { currentStudent, applications, jobDrives, testQuestions, addTestResult, updateApplicationStatus, addNotification, currentUser } = useApp();
   const [activeTest, setActiveTest] = useState<Application | null>(null);
   const [currentQ, setCurrentQ] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number>>({});
@@ -371,7 +374,14 @@ function TestsPage() {
   const pendingTests = applications.filter(a => a.studentId === currentStudent.id && a.status === 'TEST_PENDING');
   const completedTests = applications.filter(a => a.studentId === currentStudent.id && (a.status === 'PASSED' || a.status === 'FAILED'));
 
+  // Use testQuestions from Supabase, fallback to empty array
+  const questions = testQuestions.length > 0 ? testQuestions.slice(0, 20) : [];
+
   const startTest = (app: Application) => {
+    if (questions.length === 0) {
+      showToast('No test questions available. Please contact admin.', 'error');
+      return;
+    }
     setActiveTest(app);
     setCurrentQ(0);
     setAnswers({});
@@ -381,10 +391,9 @@ function TestsPage() {
   };
 
   const submitTest = () => {
-    if (!activeTest || !currentUser) return;
-    const questions = sampleTestQuestions.slice(0, 20);
+    if (!activeTest || !currentUser || questions.length === 0) return;
     let score = 0;
-    questions.forEach(q => {
+    questions.forEach((q: any) => {
       if (answers[q.id] === q.correctAnswer) score++;
     });
     const jd = jobDrives.find(j => j.id === activeTest.jobDriveId);
@@ -421,7 +430,6 @@ function TestsPage() {
 
   if (activeTest && !testSubmitted) {
     const jd = jobDrives.find(j => j.id === activeTest.jobDriveId);
-    const questions = sampleTestQuestions.slice(0, 20);
     const q = questions[currentQ];
 
     return (
@@ -482,10 +490,9 @@ function TestsPage() {
   }
 
   if (testSubmitted) {
-    const questions = sampleTestQuestions.slice(0, 20);
     let score = 0;
-    questions.forEach(q => { if (answers[q.id] === q.correctAnswer) score++; });
-    const percentage = Math.round((score / questions.length) * 100);
+    questions.forEach((q: any) => { if (answers[q.id] === q.correctAnswer) score++; });
+    const percentage = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
     const jd = jobDrives.find(j => j.id === activeTest?.jobDriveId);
     const passed = percentage >= (jd?.testPassPercentage || 60);
 
@@ -662,8 +669,8 @@ function ProfilePage() {
     setEditing(true);
   };
 
-  const saveProfile = () => {
-    updateStudentProfile(currentStudent.id, {
+  const saveProfile = async () => {
+    await updateStudentProfile(currentStudent.id, {
       name: formData.name,
       email: formData.email,
       phone: formData.phone,

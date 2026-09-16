@@ -8,7 +8,7 @@ export type DriveStatus = 'ACTIVE' | 'CLOSED' | 'EXPIRED';
 export interface User {
   id: string;
   email: string;
-  password: string;
+  password?: string;
   role: UserRole;
   createdAt: string;
 }

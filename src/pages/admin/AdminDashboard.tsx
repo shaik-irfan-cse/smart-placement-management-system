@@ -243,8 +243,8 @@ function CompaniesPage() {
     return true;
   });
 
-  const handleApprove = (id: string, status: 'APPROVED' | 'REJECTED') => {
-    updateRecruiterApproval(id, status);
+  const handleApprove = async (id: string, status: 'APPROVED' | 'REJECTED') => {
+    await updateRecruiterApproval(id, status);
     showToast(`Company ${status === 'APPROVED' ? 'approved' : 'rejected'} successfully!`, status === 'APPROVED' ? 'success' : 'info');
   };
 
@@ -310,8 +310,8 @@ function DrivesPage() {
   const { jobDrives, updateJobDrive } = useApp();
   const [confirmClose, setConfirmClose] = useState<string | null>(null);
 
-  const handleClose = (id: string) => {
-    updateJobDrive(id, { status: 'CLOSED' });
+  const handleClose = async (id: string) => {
+    await updateJobDrive(id, { status: 'CLOSED' });
     showToast('Job drive closed successfully', 'info');
   };
 
