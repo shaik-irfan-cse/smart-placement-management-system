@@ -110,9 +110,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
     setState(prev => {
       const newState = { ...prev, users: [...prev.users, newUser] };
       if (role === 'student') {
-        newState.students = [...prev.students, { id: generateId(), userId, name: data.name, rollNumber: data.rollNumber, phone: data.phone, dob: data.dob, branch: data.branch, year: data.year, cgpa: data.cgpa, skills: data.skills || [], placementStatus: 'NOT_PLACED' as const }];
+        newState.students = [...prev.students, { id: generateId(), userId, name: data.name, email: email, rollNumber: data.rollNumber, phone: data.phone, dob: data.dob, branch: data.branch, year: data.year, cgpa: data.cgpa, skills: data.skills || [], placementStatus: 'NOT_PLACED' as const }];
       } else if (role === 'recruiter') {
-        newState.recruiters = [...prev.recruiters, { id: generateId(), userId, companyName: data.companyName, recruiterName: data.recruiterName, phone: data.phone, address: data.address || '', website: data.website || '', description: data.description || '', approvalStatus: 'PENDING' as const }];
+        newState.recruiters = [...prev.recruiters, { id: generateId(), userId, companyName: data.companyName, recruiterName: data.recruiterName, email: email, phone: data.phone, address: data.address || '', website: data.website || '', description: data.description || '', approvalStatus: 'PENDING' as const }];
         newState.notifications = [...prev.notifications, { id: generateId(), userId: prev.admins[0]?.userId || '', title: 'New Company Registration', message: `${data.companyName} has registered and is pending approval.`, read: false, createdAt: new Date().toISOString().split('T')[0], type: 'warning' as const }];
       }
       return newState;

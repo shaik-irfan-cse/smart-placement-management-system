@@ -202,8 +202,9 @@ function StudentsPage() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className="bg-gray-50 p-3 rounded-lg"><p className="text-xs text-gray-500">CGPA</p><p className="font-semibold">{selectedStudent.cgpa}</p></div>
+              <div className="bg-gray-50 p-3 rounded-lg"><p className="text-xs text-gray-500">Email</p><p className="font-semibold break-all">{selectedStudent.email}</p></div>
               <div className="bg-gray-50 p-3 rounded-lg"><p className="text-xs text-gray-500">Phone</p><p className="font-semibold">{selectedStudent.phone}</p></div>
+              <div className="bg-gray-50 p-3 rounded-lg"><p className="text-xs text-gray-500">CGPA</p><p className="font-semibold">{selectedStudent.cgpa}</p></div>
               <div className="bg-gray-50 p-3 rounded-lg"><p className="text-xs text-gray-500">DOB</p><p className="font-semibold">{selectedStudent.dob}</p></div>
               <div className="bg-gray-50 p-3 rounded-lg"><p className="text-xs text-gray-500">Status</p><StatusBadge status={selectedStudent.placementStatus} /></div>
             </div>
