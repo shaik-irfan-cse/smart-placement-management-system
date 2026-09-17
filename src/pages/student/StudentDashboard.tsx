@@ -652,7 +652,7 @@ function NotificationsPage() {
 }
 
 function ProfilePage() {
-  const { currentStudent, updateStudentProfile } = useApp();
+  const { currentStudent, currentUser, updateStudentProfile } = useApp();
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState<any>({});
 
@@ -661,7 +661,7 @@ function ProfilePage() {
   const startEdit = () => {
     setFormData({
       name: currentStudent.name,
-      email: currentStudent.email,
+      email: currentUser?.email || '',
       phone: currentStudent.phone,
       skills: currentStudent.skills.join(', '),
       cgpa: currentStudent.cgpa,
@@ -672,7 +672,6 @@ function ProfilePage() {
   const saveProfile = async () => {
     await updateStudentProfile(currentStudent.id, {
       name: formData.name,
-      email: formData.email,
       phone: formData.phone,
       cgpa: parseFloat(formData.cgpa),
       skills: formData.skills.split(',').map((s: string) => s.trim()),
@@ -700,7 +699,8 @@ function ProfilePage() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input type="email" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="input-field" />
+              <input type="email" value={formData.email} readOnly className="input-field bg-gray-50 cursor-not-allowed" />
+              <p className="text-xs text-gray-500 mt-1">Email cannot be changed here</p>
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Phone</label>
@@ -731,7 +731,7 @@ function ProfilePage() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-6">
-              <div><p className="text-xs text-gray-500 mb-1">Email</p><p className="font-medium text-sm">{currentStudent.email}</p></div>
+              <div><p className="text-xs text-gray-500 mb-1">Email</p><p className="font-medium text-sm">{currentUser?.email || 'N/A'}</p></div>
               <div><p className="text-xs text-gray-500 mb-1">Phone</p><p className="font-medium text-sm">{currentStudent.phone}</p></div>
               <div><p className="text-xs text-gray-500 mb-1">Date of Birth</p><p className="font-medium text-sm">{currentStudent.dob}</p></div>
               <div><p className="text-xs text-gray-500 mb-1">Branch</p><p className="font-medium text-sm">{currentStudent.branch}</p></div>
