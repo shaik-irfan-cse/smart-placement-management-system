@@ -367,12 +367,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       // Create Supabase Auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
-      if (authError) return { success: false, message: authError.message };
-      if (!authData.user) return { success: false, message: 'Signup failed' };
+      if (authError) {
+        console.error('Auth signup error:', authError);
+        return { success: false, message: authError.message };
+      }
+      if (!authData.user) {
+        console.error('No user returned from signup');
+        return { success: false, message: 'Signup failed' };
+      }
 
       const userId = authData.user.id;
+      console.log('Auth user created with ID:', userId);
+
+      // CRITICAL: Ensure the session is fully established before database operations
+      // This is necessary because RLS policies use auth.uid() which requires an active session
+      const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
+      if (sessionError) {
+        console.error('Session check error:', sessionError);
+        return { success: false, message: 'Failed to establish session: ' + sessionError.message };
+      }
+      if (!sessionData.session) {
+        console.error('No active session after signup');
+        return { success: false, message: 'Session not established. Please try again.' };
+      }
+      
+      console.log('Session established for user:', sessionData.session.user.id);
 
       // Create profile record
+      console.log('Creating profile record...');
       const { error: profileError } = await supabase
         .from('profiles')
         .insert({ id: userId, email, role });
@@ -381,10 +403,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
         console.error('Profile creation error:', profileError);
         return { success: false, message: 'Failed to create profile: ' + profileError.message };
       }
+      console.log('Profile created successfully');
 
       // Create role-specific record
       if (role === 'student') {
-        const { error: studentError } = await supabase
+        console.log('Creating student record for user:', userId);
+        const { data: studentData, error: studentError } = await supabase
           .from('students')
           .insert({
             user_id: userId,
@@ -397,13 +421,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
             cgpa: data.cgpa || 0,
             skills: data.skills || [],
             placement_status: 'NOT_PLACED',
-          });
+          })
+          .select()
+          .single();
+        
         if (studentError) {
           console.error('Student creation error:', studentError);
+          console.error('Error details:', {
+            message: studentError.message,
+            details: studentError.details,
+            hint: studentError.hint,
+            code: studentError.code
+          });
           return { success: false, message: 'Failed to create student record: ' + studentError.message };
         }
+        console.log('Student record created successfully:', studentData);
       } else if (role === 'recruiter') {
-        const { error: recruiterError } = await supabase
+        console.log('Creating recruiter record for user:', userId);
+        const { data: recruiterData, error: recruiterError } = await supabase
           .from('recruiters')
           .insert({
             user_id: userId,
@@ -415,11 +450,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
             website: data.website || '',
             description: data.description || '',
             approval_status: 'PENDING',
-          });
+          })
+          .select()
+          .single();
+        
         if (recruiterError) {
           console.error('Recruiter creation error:', recruiterError);
+          console.error('Error details:', {
+            message: recruiterError.message,
+            details: recruiterError.details,
+            hint: recruiterError.hint,
+            code: recruiterError.code
+          });
           return { success: false, message: 'Failed to create recruiter record: ' + recruiterError.message };
         }
+        console.log('Recruiter record created successfully:', recruiterData);
 
         // Notify admins about new registration
         const { data: adminProfiles } = await supabase.from('profiles').select('id').eq('role', 'admin');
@@ -433,7 +478,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           });
         }
       } else if (role === 'admin') {
-        const { error: adminError } = await supabase
+        console.log('Creating admin record for user:', userId);
+        const { data: adminData, error: adminError } = await supabase
           .from('admins')
           .insert({
             user_id: userId,
@@ -441,11 +487,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
             employee_id: data.rollNumber,
             phone: data.phone,
             department: data.department || 'Training & Placement',
-          });
+          })
+          .select()
+          .single();
+        
         if (adminError) {
           console.error('Admin creation error:', adminError);
+          console.error('Error details:', {
+            message: adminError.message,
+            details: adminError.details,
+            hint: adminError.hint,
+            code: adminError.code
+          });
           return { success: false, message: 'Failed to create admin record: ' + adminError.message };
         }
+        console.log('Admin record created successfully:', adminData);
       }
 
       await loadUserProfile(userId, email);
