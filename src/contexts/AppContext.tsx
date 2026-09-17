@@ -408,11 +408,26 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Create role-specific record
       if (role === 'student') {
         console.log('Creating student record for user:', userId);
+        console.log('Student data to insert:', {
+          user_id: userId,
+          name: data.name,
+          email: email,
+          roll_number: data.rollNumber,
+          phone: data.phone,
+          dob: data.dob || null,
+          branch: data.branch,
+          year: data.year || 4,
+          cgpa: data.cgpa || 0,
+          skills: data.skills || [],
+          placement_status: 'NOT_PLACED',
+        });
+        
         const { data: studentData, error: studentError } = await supabase
           .from('students')
           .insert({
             user_id: userId,
             name: data.name,
+            email: email,
             roll_number: data.rollNumber,
             phone: data.phone,
             dob: data.dob || null,
@@ -426,7 +441,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           .single();
         
         if (studentError) {
-          console.error('Student creation error:', studentError);
+          console.error('❌ Student creation FAILED:', studentError);
           console.error('Error details:', {
             message: studentError.message,
             details: studentError.details,
@@ -435,7 +450,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
           });
           return { success: false, message: 'Failed to create student record: ' + studentError.message };
         }
-        console.log('Student record created successfully:', studentData);
+        
+        if (!studentData) {
+          console.error('❌ Student INSERT returned no data');
+          return { success: false, message: 'Student record was not created. No data returned.' };
+        }
+        
+        console.log('✅ Student record created successfully:', studentData);
+        console.log('Student ID:', studentData.id, 'User ID:', studentData.user_id);
       } else if (role === 'recruiter') {
         console.log('Creating recruiter record for user:', userId);
         const { data: recruiterData, error: recruiterError } = await supabase
@@ -455,7 +477,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           .single();
         
         if (recruiterError) {
-          console.error('Recruiter creation error:', recruiterError);
+          console.error('❌ Recruiter creation FAILED:', recruiterError);
           console.error('Error details:', {
             message: recruiterError.message,
             details: recruiterError.details,
@@ -464,7 +486,13 @@ export function AppProvider({ children }: { children: ReactNode }) {
           });
           return { success: false, message: 'Failed to create recruiter record: ' + recruiterError.message };
         }
-        console.log('Recruiter record created successfully:', recruiterData);
+        
+        if (!recruiterData) {
+          console.error('❌ Recruiter INSERT returned no data');
+          return { success: false, message: 'Recruiter record was not created. No data returned.' };
+        }
+        
+        console.log('✅ Recruiter record created successfully:', recruiterData);
 
         // Notify admins about new registration
         const { data: adminProfiles } = await supabase.from('profiles').select('id').eq('role', 'admin');
@@ -492,7 +520,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           .single();
         
         if (adminError) {
-          console.error('Admin creation error:', adminError);
+          console.error('❌ Admin creation FAILED:', adminError);
           console.error('Error details:', {
             message: adminError.message,
             details: adminError.details,
@@ -501,9 +529,70 @@ export function AppProvider({ children }: { children: ReactNode }) {
           });
           return { success: false, message: 'Failed to create admin record: ' + adminError.message };
         }
-        console.log('Admin record created successfully:', adminData);
+        
+        if (!adminData) {
+          console.error('❌ Admin INSERT returned no data');
+          return { success: false, message: 'Admin record was not created. No data returned.' };
+        }
+        
+        console.log('✅ Admin record created successfully:', adminData);
       }
 
+      // Verify all records were created
+      console.log('Verifying records were created...');
+      
+      const { data: verifyProfile } = await supabase
+        .from('profiles')
+        .select('id, email, role')
+        .eq('id', userId)
+        .single();
+      
+      if (!verifyProfile) {
+        console.error('❌ VERIFICATION FAILED: Profile not found after insert');
+        return { success: false, message: 'Profile was not created. Please try again.' };
+      }
+      console.log('✅ Profile verified:', verifyProfile);
+      
+      if (role === 'student') {
+        const { data: verifyStudent } = await supabase
+          .from('students')
+          .select('id, user_id, name, email, roll_number')
+          .eq('user_id', userId)
+          .single();
+        
+        if (!verifyStudent) {
+          console.error('❌ VERIFICATION FAILED: Student record not found after insert');
+          return { success: false, message: 'Student record was not created. Please contact support.' };
+        }
+        console.log('✅ Student record verified:', verifyStudent);
+      } else if (role === 'recruiter') {
+        const { data: verifyRecruiter } = await supabase
+          .from('recruiters')
+          .select('id, user_id, company_name')
+          .eq('user_id', userId)
+          .single();
+        
+        if (!verifyRecruiter) {
+          console.error('❌ VERIFICATION FAILED: Recruiter record not found after insert');
+          return { success: false, message: 'Recruiter record was not created. Please contact support.' };
+        }
+        console.log('✅ Recruiter record verified:', verifyRecruiter);
+      } else if (role === 'admin') {
+        const { data: verifyAdmin } = await supabase
+          .from('admins')
+          .select('id, user_id, name')
+          .eq('user_id', userId)
+          .single();
+        
+        if (!verifyAdmin) {
+          console.error('❌ VERIFICATION FAILED: Admin record not found after insert');
+          return { success: false, message: 'Admin record was not created. Please contact support.' };
+        }
+        console.log('✅ Admin record verified:', verifyAdmin);
+      }
+      
+      console.log('✅ All records verified successfully');
+      
       await loadUserProfile(userId, email);
       await refreshData();
       return { success: true, message: 'Registration successful' };
