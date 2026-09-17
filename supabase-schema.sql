@@ -172,13 +172,19 @@ ALTER TABLE placements ENABLE ROW LEVEL SECURITY;
 -- SAMPLE RLS POLICIES (adjust as needed for your use case)
 -- ============================================================
 
--- Profiles: Users can read their own profile
+-- Profiles: Users can read/insert their own profile
 CREATE POLICY "Users can view own profile" ON profiles
   FOR SELECT USING (auth.uid() = id);
+CREATE POLICY "Users can insert own profile" ON profiles
+  FOR INSERT WITH CHECK (auth.uid() = id);
+CREATE POLICY "Users can update own profile" ON profiles
+  FOR UPDATE USING (auth.uid() = id);
 
--- Students: Students can view/update own, admins can view all
+-- Students: Students can view/insert/update own, admins can view all
 CREATE POLICY "Students can view own record" ON students
   FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "Students can insert own record" ON students
+  FOR INSERT WITH CHECK (user_id = auth.uid());
 CREATE POLICY "Students can update own record" ON students
   FOR UPDATE USING (user_id = auth.uid());
 CREATE POLICY "Admins can view all students" ON students
@@ -186,9 +192,25 @@ CREATE POLICY "Admins can view all students" ON students
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
   );
 
--- Recruiters: Recruiters can view own, admins can view/update all
+-- Admins: Admins can view/insert/update own, admins can view all
+CREATE POLICY "Admins can view own record" ON admins
+  FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "Admins can insert own record" ON admins
+  FOR INSERT WITH CHECK (user_id = auth.uid());
+CREATE POLICY "Admins can update own record" ON admins
+  FOR UPDATE USING (user_id = auth.uid());
+CREATE POLICY "Admins can view all admins" ON admins
+  FOR SELECT USING (
+    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+  );
+
+-- Recruiters: Recruiters can view/insert/update own, admins can view/update all
 CREATE POLICY "Recruiters can view own record" ON recruiters
   FOR SELECT USING (user_id = auth.uid());
+CREATE POLICY "Recruiters can insert own record" ON recruiters
+  FOR INSERT WITH CHECK (user_id = auth.uid());
+CREATE POLICY "Recruiters can update own record" ON recruiters
+  FOR UPDATE USING (user_id = auth.uid());
 CREATE POLICY "Admins can view all recruiters" ON recruiters
   FOR SELECT USING (
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
