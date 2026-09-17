@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Briefcase, FileText, CheckCircle, Clock, BookOpen, User, Bell, LayoutDashboard, Search, Filter, ChevronRight, ArrowRight, AlertCircle } from 'lucide-react';
+import { Briefcase, FileText, CheckCircle, Clock, BookOpen, User, Bell, LayoutDashboard, Search, Filter, ChevronRight, ArrowRight, AlertCircle, Loader2 } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { useApp } from '../../contexts/AppContext';
 import { StatsCard, StatusBadge, Modal, ConfirmDialog, showToast, EmptyState, SearchInput } from '../../components/UI';
@@ -17,9 +17,49 @@ const navItems = [
 ];
 
 export default function StudentDashboard() {
-  const { currentStudent } = useApp();
+  const { currentStudent, loading, currentUser } = useApp();
   const location = useLocation();
   const path = location.pathname;
+
+  // Show loading state while data is being fetched
+  if (loading) {
+    return (
+      <DashboardLayout navItems={navItems} role="student" userName={currentStudent?.name || 'Student'}>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <Loader2 className="w-12 h-12 animate-spin text-indigo-600 mx-auto mb-4" />
+            <p className="text-gray-600">Loading your dashboard...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Show error state if user is authenticated but student record doesn't exist
+  if (currentUser && !currentStudent) {
+    return (
+      <DashboardLayout navItems={navItems} role="student" userName="Student">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center max-w-md">
+            <AlertCircle className="w-16 h-16 text-red-500 mx-auto mb-4" />
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Student Record Not Found</h2>
+            <p className="text-gray-600 mb-4">
+              Your account is authenticated, but we couldn't find your student record in the database.
+            </p>
+            <p className="text-sm text-gray-500 mb-6">
+              This might happen if your registration didn't complete successfully. Please contact the placement cell for assistance.
+            </p>
+            <button
+              onClick={() => window.location.reload()}
+              className="btn-primary"
+            >
+              Retry Loading
+            </button>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   const renderPage = () => {
     if (path.startsWith('/student/jobs')) return <JobDrivesPage />;
@@ -39,11 +79,34 @@ export default function StudentDashboard() {
 }
 
 function DashboardHome() {
-  const { currentStudent, applications, jobDrives, testResults, currentUser } = useApp();
-  if (!currentStudent || !currentUser) return null;
+  const { currentStudent, applications, jobDrives, testResults, currentUser, loading } = useApp();
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-12 h-12 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+  if (!currentStudent || !currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Unable to Load Dashboard</h2>
+          <p className="text-gray-600">Please refresh the page or contact support if the issue persists.</p>
+        </div>
+      </div>
+    );
+  }
 
   const myApps = applications.filter(a => a.studentId === currentStudent.id);
-  const eligibleDrives = jobDrives.filter(jd => jd.status === 'ACTIVE' && jd.eligibleBranches.includes(currentStudent.branch) && currentStudent.cgpa >= jd.eligibilityCGPA);
+  const eligibleDrives = jobDrives.filter(jd => 
+    jd.status === 'ACTIVE' && 
+    jd.eligibleBranches.includes(currentStudent.branch) && 
+    currentStudent.cgpa >= jd.eligibilityCGPA
+  );
   const pendingTests = myApps.filter(a => a.status === 'TEST_PENDING');
   const selected = myApps.filter(a => a.status === 'SELECTED');
 
@@ -66,19 +129,26 @@ function DashboardHome() {
         <div className="card">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">Eligible Job Drives</h2>
-            <span className="text-sm text-indigo-600 font-medium cursor-pointer">View All</span>
+            <span className="text-sm text-indigo-600 font-medium cursor-pointer hover:text-indigo-700">View All</span>
           </div>
           <div className="space-y-3">
-            {eligibleDrives.slice(0, 4).map(jd => (
-              <div key={jd.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-900 text-sm">{jd.jobRole}</p>
-                  <p className="text-xs text-gray-500">{jd.companyName} • {jd.package}</p>
-                </div>
-                <StatusBadge status={jd.status} />
+            {eligibleDrives.length === 0 ? (
+              <div className="text-center py-8">
+                <Briefcase className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-sm text-gray-500">No eligible drives currently</p>
+                <p className="text-xs text-gray-400 mt-1">Check back later for new opportunities</p>
               </div>
-            ))}
-            {eligibleDrives.length === 0 && <p className="text-sm text-gray-500 text-center py-4">No eligible drives currently</p>}
+            ) : (
+              eligibleDrives.slice(0, 4).map(jd => (
+                <div key={jd.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                  <div>
+                    <p className="font-medium text-gray-900 text-sm">{jd.jobRole}</p>
+                    <p className="text-xs text-gray-500">{jd.companyName} • {jd.package}</p>
+                  </div>
+                  <StatusBadge status={jd.status} />
+                </div>
+              ))
+            )}
           </div>
         </div>
 
@@ -88,19 +158,26 @@ function DashboardHome() {
             <h2 className="text-lg font-semibold text-gray-900">Recent Applications</h2>
           </div>
           <div className="space-y-3">
-            {myApps.slice(0, 4).map(app => {
-              const jd = jobDrives.find(j => j.id === app.jobDriveId);
-              return (
-                <div key={app.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
-                  <div>
-                    <p className="font-medium text-gray-900 text-sm">{jd?.jobRole || 'Unknown'}</p>
-                    <p className="text-xs text-gray-500">{jd?.companyName || 'Unknown'}</p>
+            {myApps.length === 0 ? (
+              <div className="text-center py-8">
+                <FileText className="w-12 h-12 text-gray-300 mx-auto mb-3" />
+                <p className="text-sm text-gray-500">No applications yet</p>
+                <p className="text-xs text-gray-400 mt-1">Start by exploring job drives</p>
+              </div>
+            ) : (
+              myApps.slice(0, 4).map(app => {
+                const jd = jobDrives.find(j => j.id === app.jobDriveId);
+                return (
+                  <div key={app.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors">
+                    <div>
+                      <p className="font-medium text-gray-900 text-sm">{jd?.jobRole || 'Unknown'}</p>
+                      <p className="text-xs text-gray-500">{jd?.companyName || 'Unknown'}</p>
+                    </div>
+                    <StatusBadge status={app.status} />
                   </div>
-                  <StatusBadge status={app.status} />
-                </div>
-              );
-            })}
-            {myApps.length === 0 && <p className="text-sm text-gray-500 text-center py-4">No applications yet</p>}
+                );
+              })
+            )}
           </div>
         </div>
       </div>
@@ -109,10 +186,22 @@ function DashboardHome() {
       <div className="mt-6 card">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">Your Profile Summary</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div><p className="text-xs text-gray-500">Name</p><p className="font-medium text-sm">{currentStudent.name}</p></div>
-          <div><p className="text-xs text-gray-500">Roll No.</p><p className="font-medium text-sm">{currentStudent.rollNumber}</p></div>
-          <div><p className="text-xs text-gray-500">Branch</p><p className="font-medium text-sm">{currentStudent.branch}</p></div>
-          <div><p className="text-xs text-gray-500">CGPA</p><p className="font-medium text-sm">{currentStudent.cgpa}</p></div>
+          <div>
+            <p className="text-xs text-gray-500">Name</p>
+            <p className="font-medium text-sm">{currentStudent.name}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Roll No.</p>
+            <p className="font-medium text-sm">{currentStudent.rollNumber}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">Branch</p>
+            <p className="font-medium text-sm">{currentStudent.branch}</p>
+          </div>
+          <div>
+            <p className="text-xs text-gray-500">CGPA</p>
+            <p className="font-medium text-sm">{currentStudent.cgpa}</p>
+          </div>
         </div>
       </div>
     </div>
@@ -120,14 +209,32 @@ function DashboardHome() {
 }
 
 function JobDrivesPage() {
-  const { currentStudent, jobDrives, applications, addApplication, addNotification, currentUser, updateApplicationStatus } = useApp();
+  const { currentStudent, jobDrives, applications, addApplication, addNotification, currentUser, loading } = useApp();
   const [search, setSearch] = useState('');
   const [filterBranch, setFilterBranch] = useState('');
   const [selectedDrive, setSelectedDrive] = useState<JobDrive | null>(null);
   const [showApplyModal, setShowApplyModal] = useState(false);
   const [eligibilityResult, setEligibilityResult] = useState<{ eligible: boolean; reason: string } | null>(null);
 
-  if (!currentStudent) return null;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-12 h-12 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+  if (!currentStudent) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Unable to Load Job Drives</h2>
+          <p className="text-gray-600">Please refresh the page or contact support.</p>
+        </div>
+      </div>
+    );
+  }
 
   const myAppJobIds = applications.filter(a => a.studentId === currentStudent.id).map(a => a.jobDriveId);
 
@@ -184,48 +291,53 @@ function JobDrivesPage() {
         </select>
       </div>
 
-      <div className="grid gap-4">
-        {filteredDrives.map(jd => {
-          const alreadyApplied = myAppJobIds.includes(jd.id);
-          return (
-            <div key={jd.id} className="card hover:border-indigo-200 transition-all cursor-pointer" onClick={() => { setSelectedDrive(jd); setEligibilityResult(checkEligibility(jd)); }}>
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div className="flex-1">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className="font-semibold text-gray-900">{jd.jobRole}</h3>
-                    <StatusBadge status={jd.status} />
+      {filteredDrives.length === 0 ? (
+        <EmptyState
+          icon={<Briefcase className="w-16 h-16" />}
+          title="No Job Drives Available"
+          description="There are no active job drives matching your criteria at the moment. Check back later for new opportunities."
+        />
+      ) : (
+        <div className="grid gap-4">
+          {filteredDrives.map(jd => {
+            const alreadyApplied = myAppJobIds.includes(jd.id);
+            return (
+              <div key={jd.id} className="card hover:border-indigo-200 transition-all cursor-pointer" onClick={() => { setSelectedDrive(jd); setEligibilityResult(checkEligibility(jd)); }}>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-semibold text-gray-900">{jd.jobRole}</h3>
+                      <StatusBadge status={jd.status} />
+                    </div>
+                    <p className="text-sm text-gray-600">{jd.companyName}</p>
+                    <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-500">
+                      <span>💰 {jd.package}</span>
+                      <span>📍 {jd.location}</span>
+                      <span>🎓 CGPA ≥ {jd.eligibilityCGPA}</span>
+                      <span>👥 {jd.openings} openings</span>
+                      <span>📅 Deadline: {jd.deadline}</span>
+                    </div>
+                    <div className="flex flex-wrap gap-1 mt-2">
+                      {jd.requiredSkills.map(s => (
+                        <span key={s} className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">{s}</span>
+                      ))}
+                    </div>
                   </div>
-                  <p className="text-sm text-gray-600">{jd.companyName}</p>
-                  <div className="flex flex-wrap gap-3 mt-2 text-xs text-gray-500">
-                    <span>💰 {jd.package}</span>
-                    <span>📍 {jd.location}</span>
-                    <span>🎓 CGPA ≥ {jd.eligibilityCGPA}</span>
-                    <span>👥 {jd.openings} openings</span>
-                    <span>📅 Deadline: {jd.deadline}</span>
+                  <div>
+                    {alreadyApplied ? (
+                      <span className="badge bg-green-100 text-green-700">Applied ✓</span>
+                    ) : (
+                      <button onClick={(e) => { e.stopPropagation(); setSelectedDrive(jd); setEligibilityResult(checkEligibility(jd)); }} className="btn-primary text-sm">
+                        View Details
+                      </button>
+                    )}
                   </div>
-                  <div className="flex flex-wrap gap-1 mt-2">
-                    {jd.requiredSkills.map(s => (
-                      <span key={s} className="px-2 py-0.5 bg-gray-100 text-gray-600 text-xs rounded">{s}</span>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  {alreadyApplied ? (
-                    <span className="badge bg-green-100 text-green-700">Applied ✓</span>
-                  ) : (
-                    <button onClick={(e) => { e.stopPropagation(); setSelectedDrive(jd); setEligibilityResult(checkEligibility(jd)); }} className="btn-primary text-sm">
-                      View Details
-                    </button>
-                  )}
                 </div>
               </div>
-            </div>
-          );
-        })}
-        {filteredDrives.length === 0 && (
-          <EmptyState icon={<Briefcase className="w-12 h-12" />} title="No Job Drives Found" description="There are no active job drives matching your criteria." />
-        )}
-      </div>
+            );
+          })}
+        </div>
+      )}
 
       {/* Job Details Modal */}
       <Modal isOpen={!!selectedDrive} onClose={() => { setSelectedDrive(null); setEligibilityResult(null); }} title="Job Drive Details" size="lg">
@@ -292,8 +404,27 @@ function JobDrivesPage() {
 }
 
 function ApplicationsPage() {
-  const { currentStudent, applications, jobDrives, testResults } = useApp();
-  if (!currentStudent) return null;
+  const { currentStudent, applications, jobDrives, testResults, loading } = useApp();
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-12 h-12 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+  if (!currentStudent) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Unable to Load Applications</h2>
+          <p className="text-gray-600">Please refresh the page or contact support.</p>
+        </div>
+      </div>
+    );
+  }
 
   const myApps = applications.filter(a => a.studentId === currentStudent.id);
 
@@ -314,67 +445,89 @@ function ApplicationsPage() {
         <p className="text-gray-500 mt-1">Track your application status</p>
       </div>
 
-      <div className="space-y-4">
-        {myApps.map(app => {
-          const jd = jobDrives.find(j => j.id === app.jobDriveId);
-          const result = testResults.find(r => r.applicationId === app.id);
-          const timeline = getTimeline(app.status);
+      {myApps.length === 0 ? (
+        <EmptyState
+          icon={<FileText className="w-16 h-16" />}
+          title="No Applications Yet"
+          description="You haven't applied to any job drives yet. Explore available job drives to get started!"
+        />
+      ) : (
+        <div className="space-y-4">
+          {myApps.map(app => {
+            const jd = jobDrives.find(j => j.id === app.jobDriveId);
+            const result = testResults.find(r => r.applicationId === app.id);
+            const timeline = getTimeline(app.status);
 
-          return (
-            <div key={app.id} className="card">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-                <div>
-                  <h3 className="font-semibold text-gray-900">{jd?.jobRole || 'Unknown Role'}</h3>
-                  <p className="text-sm text-gray-500">{jd?.companyName || 'Unknown Company'}</p>
+            return (
+              <div key={app.id} className="card">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{jd?.jobRole || 'Unknown Role'}</h3>
+                    <p className="text-sm text-gray-500">{jd?.companyName || 'Unknown Company'}</p>
+                  </div>
+                  <StatusBadge status={app.status} />
                 </div>
-                <StatusBadge status={app.status} />
-              </div>
 
-              {/* Timeline */}
-              <div className="flex items-center gap-1 overflow-x-auto pb-2">
-                {timeline.map((step, i) => (
-                  <React.Fragment key={step.label}>
-                    <div className={`flex items-center gap-1 px-2 py-1 rounded text-xs whitespace-nowrap ${step.active ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-400'} ${step.current ? 'ring-2 ring-indigo-300' : ''}`}>
-                      {step.active && <CheckCircle className="w-3 h-3" />}
-                      {step.label}
-                    </div>
-                    {i < timeline.length - 1 && <div className={`w-4 h-0.5 ${step.active ? 'bg-indigo-300' : 'bg-gray-200'}`} />}
-                  </React.Fragment>
-                ))}
-              </div>
-
-              {result && (
-                <div className="mt-3 p-3 bg-gray-50 rounded-lg">
-                  <p className="text-xs text-gray-500">Test Score: <span className="font-medium text-gray-900">{result.score}/{result.totalQuestions} ({result.percentage}%)</span></p>
+                {/* Timeline */}
+                <div className="flex items-center gap-1 overflow-x-auto pb-2">
+                  {timeline.map((step, i) => (
+                    <React.Fragment key={step.label}>
+                      <div className={`flex items-center gap-1 px-2 py-1 rounded text-xs whitespace-nowrap ${step.active ? 'bg-indigo-100 text-indigo-700' : 'bg-gray-100 text-gray-400'} ${step.current ? 'ring-2 ring-indigo-300' : ''}`}>
+                        {step.active && <CheckCircle className="w-3 h-3" />}
+                        {step.label}
+                      </div>
+                      {i < timeline.length - 1 && <div className={`w-4 h-0.5 ${step.active ? 'bg-indigo-300' : 'bg-gray-200'}`} />}
+                    </React.Fragment>
+                  ))}
                 </div>
-              )}
 
-              <p className="text-xs text-gray-400 mt-2">Applied: {app.appliedAt}</p>
-            </div>
-          );
-        })}
-        {myApps.length === 0 && (
-          <EmptyState icon={<FileText className="w-12 h-12" />} title="No Applications" description="You haven't applied to any job drives yet." />
-        )}
-      </div>
+                {result && (
+                  <div className="mt-3 p-3 bg-gray-50 rounded-lg">
+                    <p className="text-xs text-gray-500">Test Score: <span className="font-medium text-gray-900">{result.score}/{result.totalQuestions} ({result.percentage}%)</span></p>
+                  </div>
+                )}
+
+                <p className="text-xs text-gray-400 mt-2">Applied: {app.appliedAt}</p>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
 
 function TestsPage() {
-  const { currentStudent, applications, jobDrives, testQuestions, addTestResult, updateApplicationStatus, addNotification, currentUser } = useApp();
+  const { currentStudent, applications, jobDrives, testQuestions, addTestResult, updateApplicationStatus, addNotification, currentUser, loading } = useApp();
   const [activeTest, setActiveTest] = useState<Application | null>(null);
   const [currentQ, setCurrentQ] = useState(0);
   const [answers, setAnswers] = useState<Record<string, number>>({});
   const [timeLeft, setTimeLeft] = useState(0);
   const [testSubmitted, setTestSubmitted] = useState(false);
 
-  if (!currentStudent) return null;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-12 h-12 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+  if (!currentStudent) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Unable to Load Tests</h2>
+          <p className="text-gray-600">Please refresh the page or contact support.</p>
+        </div>
+      </div>
+    );
+  }
 
   const pendingTests = applications.filter(a => a.studentId === currentStudent.id && a.status === 'TEST_PENDING');
   const completedTests = applications.filter(a => a.studentId === currentStudent.id && (a.status === 'PASSED' || a.status === 'FAILED'));
 
-  // Use testQuestions from Supabase, fallback to empty array
   const questions = testQuestions.length > 0 ? testQuestions.slice(0, 20) : [];
 
   const startTest = (app: Application) => {
@@ -397,7 +550,7 @@ function TestsPage() {
       if (answers[q.id] === q.correctAnswer) score++;
     });
     const jd = jobDrives.find(j => j.id === activeTest.jobDriveId);
-    const percentage = Math.round((score / questions.length) * 100);
+    const percentage = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
     const passed = percentage >= (jd?.testPassPercentage || 60);
 
     addTestResult({
@@ -544,30 +697,54 @@ function TestsPage() {
       )}
 
       <h2 className="text-lg font-semibold text-gray-900 mb-4">Completed Tests</h2>
-      <div className="grid gap-4">
-        {completedTests.map(app => {
-          const jd = jobDrives.find(j => j.id === app.jobDriveId);
-          return (
-            <div key={app.id} className="card flex items-center justify-between">
-              <div>
-                <h3 className="font-semibold text-gray-900">{jd?.jobRole}</h3>
-                <p className="text-sm text-gray-500">{jd?.companyName}</p>
+      {completedTests.length === 0 && pendingTests.length === 0 ? (
+        <EmptyState
+          icon={<BookOpen className="w-16 h-16" />}
+          title="No Tests Available"
+          description="You don't have any pending or completed tests at the moment."
+        />
+      ) : (
+        <div className="grid gap-4">
+          {completedTests.map(app => {
+            const jd = jobDrives.find(j => j.id === app.jobDriveId);
+            return (
+              <div key={app.id} className="card flex items-center justify-between">
+                <div>
+                  <h3 className="font-semibold text-gray-900">{jd?.jobRole}</h3>
+                  <p className="text-sm text-gray-500">{jd?.companyName}</p>
+                </div>
+                <StatusBadge status={app.status} />
               </div>
-              <StatusBadge status={app.status} />
-            </div>
-          );
-        })}
-        {completedTests.length === 0 && pendingTests.length === 0 && (
-          <EmptyState icon={<BookOpen className="w-12 h-12" />} title="No Tests" description="No tests available at the moment." />
-        )}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
 
 function ResultsPage() {
-  const { currentStudent, testResults, jobDrives } = useApp();
-  if (!currentStudent) return null;
+  const { currentStudent, testResults, jobDrives, loading } = useApp();
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-12 h-12 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+  if (!currentStudent) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Unable to Load Results</h2>
+          <p className="text-gray-600">Please refresh the page or contact support.</p>
+        </div>
+      </div>
+    );
+  }
 
   const myResults = testResults.filter(r => r.studentId === currentStudent.id);
 
@@ -578,48 +755,72 @@ function ResultsPage() {
         <p className="text-gray-500 mt-1">View your assessment results</p>
       </div>
 
-      <div className="grid gap-4">
-        {myResults.map(result => {
-          const jd = jobDrives.find(j => j.id === result.jobDriveId);
-          return (
-            <div key={result.id} className="card">
-              <div className="flex items-center justify-between mb-3">
-                <div>
-                  <h3 className="font-semibold text-gray-900">{jd?.jobRole}</h3>
-                  <p className="text-sm text-gray-500">{jd?.companyName}</p>
+      {myResults.length === 0 ? (
+        <EmptyState
+          icon={<CheckCircle className="w-16 h-16" />}
+          title="No Results Yet"
+          description="Complete a technical test to see your results here."
+        />
+      ) : (
+        <div className="grid gap-4">
+          {myResults.map(result => {
+            const jd = jobDrives.find(j => j.id === result.jobDriveId);
+            return (
+              <div key={result.id} className="card">
+                <div className="flex items-center justify-between mb-3">
+                  <div>
+                    <h3 className="font-semibold text-gray-900">{jd?.jobRole}</h3>
+                    <p className="text-sm text-gray-500">{jd?.companyName}</p>
+                  </div>
+                  <span className={`badge ${result.passed ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
+                    {result.passed ? 'PASSED' : 'FAILED'}
+                  </span>
                 </div>
-                <span className={`badge ${result.passed ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                  {result.passed ? 'PASSED' : 'FAILED'}
-                </span>
+                <div className="grid grid-cols-3 gap-4">
+                  <div className="bg-gray-50 p-3 rounded-lg text-center">
+                    <p className="text-xs text-gray-500">Score</p>
+                    <p className="text-lg font-bold">{result.score}/{result.totalQuestions}</p>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded-lg text-center">
+                    <p className="text-xs text-gray-500">Percentage</p>
+                    <p className="text-lg font-bold">{result.percentage}%</p>
+                  </div>
+                  <div className="bg-gray-50 p-3 rounded-lg text-center">
+                    <p className="text-xs text-gray-500">Date</p>
+                    <p className="text-lg font-bold text-sm">{result.submittedAt}</p>
+                  </div>
+                </div>
               </div>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="bg-gray-50 p-3 rounded-lg text-center">
-                  <p className="text-xs text-gray-500">Score</p>
-                  <p className="text-lg font-bold">{result.score}/{result.totalQuestions}</p>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-lg text-center">
-                  <p className="text-xs text-gray-500">Percentage</p>
-                  <p className="text-lg font-bold">{result.percentage}%</p>
-                </div>
-                <div className="bg-gray-50 p-3 rounded-lg text-center">
-                  <p className="text-xs text-gray-500">Date</p>
-                  <p className="text-lg font-bold text-sm">{result.submittedAt}</p>
-                </div>
-              </div>
-            </div>
-          );
-        })}
-        {myResults.length === 0 && (
-          <EmptyState icon={<CheckCircle className="w-12 h-12" />} title="No Results Yet" description="Complete a test to see your results here." />
-        )}
-      </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
 
 function NotificationsPage() {
-  const { currentUser, notifications, markNotificationRead } = useApp();
-  if (!currentUser) return null;
+  const { currentUser, notifications, markNotificationRead, loading } = useApp();
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-12 h-12 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Unable to Load Notifications</h2>
+          <p className="text-gray-600">Please refresh the page or contact support.</p>
+        </div>
+      </div>
+    );
+  }
 
   const myNotifs = notifications.filter(n => n.userId === currentUser.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
@@ -630,33 +831,56 @@ function NotificationsPage() {
         <p className="text-gray-500 mt-1">Stay updated with your placement activities</p>
       </div>
 
-      <div className="space-y-3">
-        {myNotifs.map(n => (
-          <div key={n.id} onClick={() => markNotificationRead(n.id)} className={`card cursor-pointer ${!n.read ? 'border-l-4 border-l-indigo-500' : ''}`}>
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="font-medium text-gray-900">{n.title}</h3>
-                <p className="text-sm text-gray-500 mt-1">{n.message}</p>
-                <p className="text-xs text-gray-400 mt-2">{n.createdAt}</p>
+      {myNotifs.length === 0 ? (
+        <EmptyState
+          icon={<Bell className="w-16 h-16" />}
+          title="No Notifications"
+          description="You're all caught up! New notifications will appear here."
+        />
+      ) : (
+        <div className="space-y-3">
+          {myNotifs.map(n => (
+            <div key={n.id} onClick={() => markNotificationRead(n.id)} className={`card cursor-pointer ${!n.read ? 'border-l-4 border-l-indigo-500' : ''}`}>
+              <div className="flex items-start justify-between">
+                <div>
+                  <h3 className="font-medium text-gray-900">{n.title}</h3>
+                  <p className="text-sm text-gray-500 mt-1">{n.message}</p>
+                  <p className="text-xs text-gray-400 mt-2">{n.createdAt}</p>
+                </div>
+                {!n.read && <span className="w-2 h-2 bg-indigo-500 rounded-full flex-shrink-0 mt-2" />}
               </div>
-              {!n.read && <span className="w-2 h-2 bg-indigo-500 rounded-full flex-shrink-0 mt-2" />}
             </div>
-          </div>
-        ))}
-        {myNotifs.length === 0 && (
-          <EmptyState icon={<Bell className="w-12 h-12" />} title="No Notifications" description="You're all caught up!" />
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
 function ProfilePage() {
-  const { currentStudent, currentUser, updateStudentProfile } = useApp();
+  const { currentStudent, currentUser, updateStudentProfile, loading } = useApp();
   const [editing, setEditing] = useState(false);
   const [formData, setFormData] = useState<any>({});
 
-  if (!currentStudent) return null;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Loader2 className="w-12 h-12 animate-spin text-indigo-600" />
+      </div>
+    );
+  }
+
+  if (!currentStudent) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <AlertCircle className="w-16 h-16 text-yellow-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Unable to Load Profile</h2>
+          <p className="text-gray-600">Please refresh the page or contact support.</p>
+        </div>
+      </div>
+    );
+  }
 
   const startEdit = () => {
     setFormData({
@@ -732,8 +956,8 @@ function ProfilePage() {
             </div>
             <div className="grid grid-cols-2 gap-6">
               <div><p className="text-xs text-gray-500 mb-1">Email</p><p className="font-medium text-sm">{currentUser?.email || 'N/A'}</p></div>
-              <div><p className="text-xs text-gray-500 mb-1">Phone</p><p className="font-medium text-sm">{currentStudent.phone}</p></div>
-              <div><p className="text-xs text-gray-500 mb-1">Date of Birth</p><p className="font-medium text-sm">{currentStudent.dob}</p></div>
+              <div><p className="text-xs text-gray-500 mb-1">Phone</p><p className="font-medium text-sm">{currentStudent.phone || '-'}</p></div>
+              <div><p className="text-xs text-gray-500 mb-1">Date of Birth</p><p className="font-medium text-sm">{currentStudent.dob || '-'}</p></div>
               <div><p className="text-xs text-gray-500 mb-1">Branch</p><p className="font-medium text-sm">{currentStudent.branch}</p></div>
               <div><p className="text-xs text-gray-500 mb-1">Year</p><p className="font-medium text-sm">{currentStudent.year}</p></div>
               <div><p className="text-xs text-gray-500 mb-1">CGPA</p><p className="font-medium text-sm">{currentStudent.cgpa}</p></div>
@@ -742,7 +966,11 @@ function ProfilePage() {
             <div>
               <p className="text-xs text-gray-500 mb-2">Skills</p>
               <div className="flex flex-wrap gap-2">
-                {currentStudent.skills.map(s => <span key={s} className="px-3 py-1 bg-indigo-50 text-indigo-700 text-sm rounded-full">{s}</span>)}
+                {currentStudent.skills.length === 0 ? (
+                  <p className="text-sm text-gray-400">No skills added yet</p>
+                ) : (
+                  currentStudent.skills.map(s => <span key={s} className="px-3 py-1 bg-indigo-50 text-indigo-700 text-sm rounded-full">{s}</span>)
+                )}
               </div>
             </div>
           </div>
