@@ -197,6 +197,24 @@ export function AppProvider({ children }: { children: ReactNode }) {
         supabase.from('placements').select('*'),
       ]);
 
+      // Log any RLS or query errors for debugging
+      const results = [
+        { table: 'students', res: studentsRes },
+        { table: 'admins', res: adminsRes },
+        { table: 'recruiters', res: recruitersRes },
+        { table: 'job_drives', res: jobDrivesRes },
+        { table: 'applications', res: applicationsRes },
+        { table: 'test_results', res: testResultsRes },
+        { table: 'test_questions', res: testQuestionsRes },
+        { table: 'notifications', res: notificationsRes },
+        { table: 'placements', res: placementsRes },
+      ];
+      results.forEach(({ table, res }) => {
+        if (res.error) {
+          console.warn(`Query error on ${table}:`, res.error.message);
+        }
+      });
+
       setState({
         students: (studentsRes.data || []).map(mapStudent),
         admins: (adminsRes.data || []).map(mapAdmin),
@@ -247,11 +265,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const loadUserProfile = async (userId: string, email: string) => {
     try {
-      const { data: profile } = await supabase
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
+
+      if (profileError) {
+        console.error('Error loading profile:', profileError);
+        return;
+      }
 
       if (profile) {
         setCurrentUser({
@@ -260,6 +283,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           role: profile.role as UserRole,
           createdAt: profile.created_at,
         });
+      } else {
+        console.warn('No profile found for user ID:', userId);
       }
     } catch (err) {
       console.error('Error loading profile:', err);
@@ -272,24 +297,63 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const login = async (email: string, password: string, role: UserRole) => {
     try {
+      // Step 1: Sign in with Supabase Auth
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) return { success: false, message: error.message };
-      if (!data.user) return { success: false, message: 'Login failed' };
+      if (error) {
+        console.error('Auth sign-in error:', error);
+        return { success: false, message: error.message };
+      }
+      if (!data.user) {
+        console.error('No user returned from sign-in');
+        return { success: false, message: 'Login failed' };
+      }
 
-      // Check role matches
-      const { data: profile } = await supabase
+      console.log('Authenticated user ID:', data.user.id);
+
+      // Step 2: Retrieve the profile using the authenticated user's ID
+      const { data: profile, error: profileError } = await supabase
         .from('profiles')
         .select('role')
         .eq('id', data.user.id)
-        .single();
+        .maybeSingle();
 
-      if (!profile) return { success: false, message: 'Profile not found. Please contact admin.' };
-      if (profile.role !== role) return { success: false, message: `This account is not registered as a ${role}. Please use the correct login portal.` };
+      // Check for query errors (including RLS blocks)
+      if (profileError) {
+        console.error('Profile query error:', profileError);
+        // Check if it's an RLS error
+        if (profileError.message.includes('policy') || profileError.code === '42501') {
+          return { 
+            success: false, 
+            message: 'Access denied. Please contact admin to verify your account permissions.' 
+          };
+        }
+        return { success: false, message: 'Failed to load profile: ' + profileError.message };
+      }
 
+      // Step 3: Verify profile exists
+      if (!profile) {
+        console.error('Profile not found for user ID:', data.user.id);
+        return { success: false, message: 'Profile not found. Please contact admin.' };
+      }
+
+      console.log('Profile found with role:', profile.role);
+
+      // Step 4: Verify the profile role matches the login portal
+      if (profile.role !== role) {
+        console.error(`Role mismatch: expected ${role}, got ${profile.role}`);
+        return { success: false, message: `This account is not registered as a ${role}. Please use the correct login portal.` };
+      }
+
+      // Step 5: Load the full user profile and student/admin/recruiter record
       await loadUserProfile(data.user.id, email);
+      
+      // Step 6: Refresh all data (students, job drives, applications, etc.)
       await refreshData();
+      
+      console.log('Login successful');
       return { success: true, message: 'Login successful' };
     } catch (err: any) {
+      console.error('Login error:', err);
       return { success: false, message: err.message || 'Login failed' };
     }
   };
