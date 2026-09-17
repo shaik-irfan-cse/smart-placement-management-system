@@ -437,7 +437,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const studentInsertData = {
           user_id: userId,
           name: data.name,
-          email: email,
           roll_number: data.rollNumber,
           phone: data.phone,
           dob: data.dob || null,
