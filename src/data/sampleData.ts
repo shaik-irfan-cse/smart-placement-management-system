@@ -15,11 +15,11 @@ export const sampleUsers: User[] = [
 ];
 
 export const sampleStudents: Student[] = [
-  { id: 's1', userId: 'u1', name: 'Arjun Kumar', rollNumber: '21CS001', phone: '9876543210', dob: '2003-05-15', branch: 'CSE', year: 4, cgpa: 8.5, skills: ['Java', 'Python', 'React', 'SQL'], placementStatus: 'IN_PROCESS' },
-  { id: 's2', userId: 'u2', name: 'Rahul Sharma', rollNumber: '21CS002', phone: '9876543211', dob: '2003-07-22', branch: 'CSE', year: 4, cgpa: 7.8, skills: ['Python', 'Machine Learning', 'SQL'], placementStatus: 'IN_PROCESS' },
-  { id: 's3', userId: 'u3', name: 'Sneha Reddy', rollNumber: '21IT003', phone: '9876543212', dob: '2003-03-10', branch: 'IT', year: 4, cgpa: 9.1, skills: ['JavaScript', 'React', 'Node.js', 'MongoDB'], placementStatus: 'PLACED' },
-  { id: 's4', userId: 'u4', name: 'Priya Singh', rollNumber: '21EC004', phone: '9876543213', dob: '2003-09-05', branch: 'ECE', year: 4, cgpa: 8.2, skills: ['C++', 'VLSI', 'Python', 'MATLAB'], placementStatus: 'IN_PROCESS' },
-  { id: 's5', userId: 'u5', name: 'Kiran Kumar', rollNumber: '21ME005', phone: '9876543214', dob: '2003-11-20', branch: 'ME', year: 4, cgpa: 7.2, skills: ['AutoCAD', 'Python', 'SolidWorks'], placementStatus: 'NOT_PLACED' },
+  { id: 's1', userId: 'u1', name: 'Arjun Kumar', email: 'arjun@college.edu', rollNumber: '21CS001', phone: '9876543210', dob: '2003-05-15', branch: 'CSE', year: 4, cgpa: 8.5, skills: ['Java', 'Python', 'React', 'SQL'], placementStatus: 'IN_PROCESS' },
+  { id: 's2', userId: 'u2', name: 'Rahul Sharma', email: 'rahul@college.edu', rollNumber: '21CS002', phone: '9876543211', dob: '2003-07-22', branch: 'CSE', year: 4, cgpa: 7.8, skills: ['Python', 'Machine Learning', 'SQL'], placementStatus: 'IN_PROCESS' },
+  { id: 's3', userId: 'u3', name: 'Sneha Reddy', email: 'sneha@college.edu', rollNumber: '21IT003', phone: '9876543212', dob: '2003-03-10', branch: 'IT', year: 4, cgpa: 9.1, skills: ['JavaScript', 'React', 'Node.js', 'MongoDB'], placementStatus: 'PLACED' },
+  { id: 's4', userId: 'u4', name: 'Priya Singh', email: 'priya@college.edu', rollNumber: '21EC004', phone: '9876543213', dob: '2003-09-05', branch: 'ECE', year: 4, cgpa: 8.2, skills: ['C++', 'VLSI', 'Python', 'MATLAB'], placementStatus: 'IN_PROCESS' },
+  { id: 's5', userId: 'u5', name: 'Kiran Kumar', email: 'kiran@college.edu', rollNumber: '21ME005', phone: '9876543214', dob: '2003-11-20', branch: 'ME', year: 4, cgpa: 7.2, skills: ['AutoCAD', 'Python', 'SolidWorks'], placementStatus: 'NOT_PLACED' },
 ];
 
 export const sampleAdmins: Admin[] = [
@@ -27,11 +27,11 @@ export const sampleAdmins: Admin[] = [
 ];
 
 export const sampleRecruiters: Recruiter[] = [
-  { id: 'r1', userId: 'u7', companyName: 'TCS', recruiterName: 'Anita Desai', phone: '9876500010', address: 'Mumbai, Maharashtra', website: 'https://tcs.com', description: 'Tata Consultancy Services is a global leader in IT services, consulting, and business solutions.', approvalStatus: 'APPROVED' },
-  { id: 'r2', userId: 'u8', companyName: 'Infosys', recruiterName: 'Vikram Patel', phone: '9876500011', address: 'Bengaluru, Karnataka', website: 'https://infosys.com', description: 'Infosys is a global leader in next-generation digital services and consulting.', approvalStatus: 'APPROVED' },
-  { id: 'r3', userId: 'u9', companyName: 'Wipro', recruiterName: 'Meera Joshi', phone: '9876500012', address: 'Bengaluru, Karnataka', website: 'https://wipro.com', description: 'Wipro Limited is a leading technology services and consulting company.', approvalStatus: 'APPROVED' },
-  { id: 'r4', userId: 'u10', companyName: 'Deloitte', recruiterName: 'Suresh Menon', phone: '9876500013', address: 'Hyderabad, Telangana', website: 'https://deloitte.com', description: 'Deloitte provides audit, consulting, financial advisory, risk management, and tax services.', approvalStatus: 'PENDING' },
-  { id: 'r5', userId: 'u11', companyName: 'Tech Mahindra', recruiterName: 'Pooja Gupta', phone: '9876500014', address: 'Pune, Maharashtra', website: 'https://techmahindra.com', description: 'Tech Mahindra is a leading provider of IT services and digital transformation solutions.', approvalStatus: 'APPROVED' },
+  { id: 'r1', userId: 'u7', companyName: 'TCS', recruiterName: 'Anita Desai', email: 'hr@tcs.com', phone: '9876500010', address: 'Mumbai, Maharashtra', website: 'https://tcs.com', description: 'Tata Consultancy Services is a global leader in IT services, consulting, and business solutions.', approvalStatus: 'APPROVED' },
+  { id: 'r2', userId: 'u8', companyName: 'Infosys', recruiterName: 'Vikram Patel', email: 'hr@infosys.com', phone: '9876500011', address: 'Bengaluru, Karnataka', website: 'https://infosys.com', description: 'Infosys is a global leader in next-generation digital services and consulting.', approvalStatus: 'APPROVED' },
+  { id: 'r3', userId: 'u9', companyName: 'Wipro', recruiterName: 'Meera Joshi', email: 'hr@wipro.com', phone: '9876500012', address: 'Bengaluru, Karnataka', website: 'https://wipro.com', description: 'Wipro Limited is a leading technology services and consulting company.', approvalStatus: 'APPROVED' },
+  { id: 'r4', userId: 'u10', companyName: 'Deloitte', recruiterName: 'Suresh Menon', email: 'hr@deloitte.com', phone: '9876500013', address: 'Hyderabad, Telangana', website: 'https://deloitte.com', description: 'Deloitte provides audit, consulting, financial advisory, risk management, and tax services.', approvalStatus: 'PENDING' },
+  { id: 'r5', userId: 'u11', companyName: 'Tech Mahindra', recruiterName: 'Pooja Gupta', email: 'hr@techm.com', phone: '9876500014', address: 'Pune, Maharashtra', website: 'https://techmahindra.com', description: 'Tech Mahindra is a leading provider of IT services and digital transformation solutions.', approvalStatus: 'APPROVED' },
 ];
 
 export const sampleJobDrives: JobDrive[] = [

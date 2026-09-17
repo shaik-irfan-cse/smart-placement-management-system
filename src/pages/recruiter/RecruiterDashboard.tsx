@@ -157,7 +157,7 @@ function CompanyProfilePage() {
 
         <div className="grid grid-cols-2 gap-6">
           <div><p className="text-xs text-gray-500 mb-1">Recruiter Name</p><p className="font-medium text-sm">{currentRecruiter.recruiterName}</p></div>
-          <div><p className="text-xs text-gray-500 mb-1">Email</p><p className="font-medium text-sm">{currentRecruiter.phone}</p></div>
+          <div><p className="text-xs text-gray-500 mb-1">Email</p><p className="font-medium text-sm break-all">{currentRecruiter.email}</p></div>
           <div><p className="text-xs text-gray-500 mb-1">Phone</p><p className="font-medium text-sm">{currentRecruiter.phone}</p></div>
           <div><p className="text-xs text-gray-500 mb-1">Website</p><p className="font-medium text-sm">{currentRecruiter.website || 'N/A'}</p></div>
           <div className="col-span-2"><p className="text-xs text-gray-500 mb-1">Address</p><p className="font-medium text-sm">{currentRecruiter.address || 'N/A'}</p></div>
@@ -199,7 +199,7 @@ function JobDrivesPage() {
     setShowCreate(true);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (currentRecruiter.approvalStatus !== 'APPROVED') {
       showToast('Your company must be approved before creating job drives', 'error');
@@ -225,22 +225,22 @@ function JobDrivesPage() {
     };
 
     if (editingDrive) {
-      updateJobDrive(editingDrive.id, driveData);
+      await updateJobDrive(editingDrive.id, driveData);
       showToast('Job drive updated successfully!', 'success');
     } else {
-      addJobDrive(driveData);
+      await addJobDrive(driveData);
       showToast('Job drive created successfully!', 'success');
     }
     setShowCreate(false);
   };
 
-  const handleDelete = (id: string) => {
-    deleteJobDrive(id);
+  const handleDelete = async (id: string) => {
+    await deleteJobDrive(id);
     showToast('Job drive deleted', 'info');
   };
 
-  const handleClose = (id: string) => {
-    updateJobDrive(id, { status: 'CLOSED' });
+  const handleClose = async (id: string) => {
+    await updateJobDrive(id, { status: 'CLOSED' });
     showToast('Job drive closed', 'info');
   };
 
@@ -397,8 +397,8 @@ function ApplicationsPage() {
     return true;
   });
 
-  const handleAction = (appId: string, action: 'SELECTED' | 'REJECTED') => {
-    updateApplicationStatus(appId, action);
+  const handleAction = async (appId: string, action: 'SELECTED' | 'REJECTED') => {
+    await updateApplicationStatus(appId, action);
     const app = applications.find(a => a.id === appId);
     if (app) {
       const student = students.find(s => s.id === app.studentId);

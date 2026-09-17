@@ -202,8 +202,9 @@ function StudentsPage() {
               </div>
             </div>
             <div className="grid grid-cols-2 gap-4 mb-4">
-              <div className="bg-gray-50 p-3 rounded-lg"><p className="text-xs text-gray-500">CGPA</p><p className="font-semibold">{selectedStudent.cgpa}</p></div>
+              <div className="bg-gray-50 p-3 rounded-lg"><p className="text-xs text-gray-500">Email</p><p className="font-semibold break-all">{selectedStudent.email}</p></div>
               <div className="bg-gray-50 p-3 rounded-lg"><p className="text-xs text-gray-500">Phone</p><p className="font-semibold">{selectedStudent.phone}</p></div>
+              <div className="bg-gray-50 p-3 rounded-lg"><p className="text-xs text-gray-500">CGPA</p><p className="font-semibold">{selectedStudent.cgpa}</p></div>
               <div className="bg-gray-50 p-3 rounded-lg"><p className="text-xs text-gray-500">DOB</p><p className="font-semibold">{selectedStudent.dob}</p></div>
               <div className="bg-gray-50 p-3 rounded-lg"><p className="text-xs text-gray-500">Status</p><StatusBadge status={selectedStudent.placementStatus} /></div>
             </div>
@@ -242,8 +243,8 @@ function CompaniesPage() {
     return true;
   });
 
-  const handleApprove = (id: string, status: 'APPROVED' | 'REJECTED') => {
-    updateRecruiterApproval(id, status);
+  const handleApprove = async (id: string, status: 'APPROVED' | 'REJECTED') => {
+    await updateRecruiterApproval(id, status);
     showToast(`Company ${status === 'APPROVED' ? 'approved' : 'rejected'} successfully!`, status === 'APPROVED' ? 'success' : 'info');
   };
 
@@ -309,8 +310,8 @@ function DrivesPage() {
   const { jobDrives, updateJobDrive } = useApp();
   const [confirmClose, setConfirmClose] = useState<string | null>(null);
 
-  const handleClose = (id: string) => {
-    updateJobDrive(id, { status: 'CLOSED' });
+  const handleClose = async (id: string) => {
+    await updateJobDrive(id, { status: 'CLOSED' });
     showToast('Job drive closed successfully', 'info');
   };
 

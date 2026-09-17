@@ -8,7 +8,7 @@ export type DriveStatus = 'ACTIVE' | 'CLOSED' | 'EXPIRED';
 export interface User {
   id: string;
   email: string;
-  password: string;
+  password?: string;
   role: UserRole;
   createdAt: string;
 }
@@ -17,6 +17,7 @@ export interface Student {
   id: string;
   userId: string;
   name: string;
+  email: string;
   rollNumber: string;
   phone: string;
   dob: string;
@@ -42,6 +43,7 @@ export interface Recruiter {
   userId: string;
   companyName: string;
   recruiterName: string;
+  email: string;
   phone: string;
   address: string;
   website: string;

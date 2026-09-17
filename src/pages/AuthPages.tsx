@@ -15,39 +15,29 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
 
   const roleConfig: Record<string, { title: string; subtitle: string; placeholder: string; color: string }> = {
-    student: { title: 'Student Login', subtitle: 'Access your placement portal', placeholder: 'Roll Number / Email', color: 'indigo' },
-    admin: { title: 'Admin Login', subtitle: 'Manage the placement system', placeholder: 'Employee ID / Email', color: 'blue' },
-    recruiter: { title: 'Recruiter Login', subtitle: 'Access your company portal', placeholder: 'Email / Username', color: 'purple' },
+    student: { title: 'Student Login', subtitle: 'Access your placement portal', placeholder: 'Email address', color: 'indigo' },
+    admin: { title: 'Admin Login', subtitle: 'Manage the placement system', placeholder: 'Email address', color: 'blue' },
+    recruiter: { title: 'Recruiter Login', subtitle: 'Access your company portal', placeholder: 'Email address', color: 'purple' },
   };
 
   const config = roleConfig[role || 'student'] || roleConfig.student;
   const userRole = (role || 'student') as UserRole;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setTimeout(() => {
-      const result = login(email, password);
+    try {
+      const result = await login(email, password, userRole);
       if (result.success) {
         showToast('Login successful!', 'success');
         navigate(`/${userRole}/dashboard`);
       } else {
         showToast(result.message, 'error');
       }
-      setLoading(false);
-    }, 500);
-  };
-
-  const demoCredentials: Record<string, { email: string; password: string }> = {
-    student: { email: 'arjun@college.edu', password: 'pass123' },
-    admin: { email: 'admin@college.edu', password: 'admin123' },
-    recruiter: { email: 'hr@tcs.com', password: 'pass123' },
-  };
-
-  const fillDemo = () => {
-    const creds = demoCredentials[role || 'student'];
-    setEmail(creds.email);
-    setPassword(creds.password);
+    } catch (err: any) {
+      showToast(err.message || 'Login failed', 'error');
+    }
+    setLoading(false);
   };
 
   return (
@@ -107,12 +97,6 @@ export function LoginPage() {
             </button>
           </form>
 
-          <div className="mt-4 p-3 bg-indigo-50 rounded-lg">
-            <button onClick={fillDemo} className="text-xs text-indigo-600 font-medium hover:text-indigo-700">
-              📋 Fill demo credentials for testing
-            </button>
-          </div>
-
           <div className="mt-6 text-center">
             <p className="text-sm text-gray-500">
               Don't have an account?{' '}
@@ -157,7 +141,7 @@ export function SignupPage() {
 
   const updateField = (field: string, value: any) => setFormData((prev: any) => ({ ...prev, [field]: value }));
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (formData.password !== formData.confirmPassword) {
       showToast('Passwords do not match', 'error');
@@ -168,8 +152,8 @@ export function SignupPage() {
       return;
     }
     setLoading(true);
-    setTimeout(() => {
-      const result = signup(formData.email, formData.password, userRole, {
+    try {
+      const result = await signup(formData.email, formData.password, userRole, {
         ...formData,
         cgpa: parseFloat(formData.cgpa) || 0,
         skills: formData.skills ? formData.skills.split(',').map((s: string) => s.trim()) : [],
@@ -180,8 +164,10 @@ export function SignupPage() {
       } else {
         showToast(result.message, 'error');
       }
-      setLoading(false);
-    }, 500);
+    } catch (err: any) {
+      showToast(err.message || 'Registration failed', 'error');
+    }
+    setLoading(false);
   };
 
   const branches = ['CSE', 'IT', 'ECE', 'EEE', 'ME', 'CE'];
@@ -314,7 +300,7 @@ export function SignupPage() {
         <div className="text-center mt-6">
           <Link to="/" className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700">
             <ArrowLeft className="w-4 h-4" /> Back to Home
-          </Link>
+        </Link>
         </div>
       </div>
     </div>

@@ -34,8 +34,8 @@ export default function DashboardLayout({ navItems, role, userName, children }: 
     recruiter: 'bg-purple-600',
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/');
   };
 
