@@ -47,7 +47,6 @@ function mapStudent(row: any): Student {
     id: row.id,
     userId: row.user_id,
     name: row.name,
-    email: row.email || '',
     rollNumber: row.roll_number,
     phone: row.phone,
     dob: row.dob,
@@ -326,7 +325,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           .insert({
             user_id: userId,
             name: data.name,
-            email: email,
             roll_number: data.rollNumber,
             phone: data.phone,
             dob: data.dob || null,
@@ -534,7 +532,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateStudentProfile = async (id: string, data: Partial<Student>) => {
     const dbData: any = {};
     if (data.name !== undefined) dbData.name = data.name;
-    if (data.email !== undefined) dbData.email = data.email;
     if (data.phone !== undefined) dbData.phone = data.phone;
     if (data.cgpa !== undefined) dbData.cgpa = data.cgpa;
     if (data.skills !== undefined) dbData.skills = data.skills;
