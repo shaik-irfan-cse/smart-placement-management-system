@@ -46,15 +46,35 @@ export default function StudentDashboard() {
             <p className="text-gray-600 mb-4">
               Your account is authenticated, but we couldn't find your student record in the database.
             </p>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4 text-left">
+              <p className="text-sm font-medium text-yellow-800 mb-2">Possible causes:</p>
+              <ul className="text-sm text-yellow-700 space-y-1">
+                <li>• Email confirmation is pending - check your inbox</li>
+                <li>• Registration didn't complete successfully</li>
+                <li>• Database synchronization delay</li>
+              </ul>
+            </div>
             <p className="text-sm text-gray-500 mb-6">
-              This might happen if your registration didn't complete successfully. Please contact the placement cell for assistance.
+              Please check your email for a confirmation link, or contact the placement cell if the issue persists.
             </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="btn-primary"
-            >
-              Retry Loading
-            </button>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => window.location.reload()}
+                className="btn-primary"
+              >
+                Retry Loading
+              </button>
+              <button
+                onClick={async () => {
+                  const { supabase } = await import('../../lib/supabase');
+                  await supabase.auth.signOut();
+                  window.location.href = '/login/student';
+                }}
+                className="btn-secondary"
+              >
+                Logout & Try Again
+              </button>
+            </div>
           </div>
         </div>
       </DashboardLayout>

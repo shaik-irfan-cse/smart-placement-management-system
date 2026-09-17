@@ -365,50 +365,76 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const signup = async (email: string, password: string, role: UserRole, data: any) => {
     try {
+      console.log('🚀 Starting registration for:', email);
+      
       // Create Supabase Auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
       if (authError) {
-        console.error('Auth signup error:', authError);
+        console.error('❌ Auth signup error:', authError);
         return { success: false, message: authError.message };
       }
       if (!authData.user) {
-        console.error('No user returned from signup');
+        console.error('❌ No user returned from signup');
         return { success: false, message: 'Signup failed' };
       }
 
       const userId = authData.user.id;
-      console.log('Auth user created with ID:', userId);
+      console.log('✅ Auth user created with ID:', userId);
+      console.log('📧 Email confirmed at:', authData.user.email_confirmed_at);
 
       // CRITICAL: Ensure the session is fully established before database operations
-      // This is necessary because RLS policies use auth.uid() which requires an active session
+      // Wait a moment for the session to be fully established
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
       const { data: sessionData, error: sessionError } = await supabase.auth.getSession();
       if (sessionError) {
-        console.error('Session check error:', sessionError);
+        console.error('❌ Session check error:', sessionError);
         return { success: false, message: 'Failed to establish session: ' + sessionError.message };
       }
       if (!sessionData.session) {
-        console.error('No active session after signup');
+        console.error('❌ No active session after signup');
         return { success: false, message: 'Session not established. Please try again.' };
       }
       
-      console.log('Session established for user:', sessionData.session.user.id);
+      console.log('✅ Session established for user:', sessionData.session.user.id);
+      console.log('🔑 Access token exists:', !!sessionData.session.access_token);
+
+      // CRITICAL FIX: Explicitly sign in with password to ensure fully authenticated session
+      // This is necessary when email confirmation may be enabled in Supabase
+      console.log('🔐 Explicitly signing in to ensure full authentication...');
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+      if (signInError) {
+        console.error('❌ Explicit sign-in failed:', signInError);
+        // Don't fail here - the session from signUp might still work
+        console.log('⚠️ Continuing with existing session...');
+      } else {
+        console.log('✅ Explicit sign-in successful');
+      }
 
       // Create profile record
-      console.log('Creating profile record...');
-      const { error: profileError } = await supabase
+      console.log('📝 Creating profile record...');
+      const { data: profileInsertData, error: profileError } = await supabase
         .from('profiles')
-        .insert({ id: userId, email, role });
+        .insert({ id: userId, email, role })
+        .select()
+        .single();
 
       if (profileError) {
-        console.error('Profile creation error:', profileError);
+        console.error('❌ Profile creation error:', profileError);
+        console.error('Profile error details:', {
+          message: profileError.message,
+          details: profileError.details,
+          hint: profileError.hint,
+          code: profileError.code
+        });
         return { success: false, message: 'Failed to create profile: ' + profileError.message };
       }
-      console.log('Profile created successfully');
+      console.log('✅ Profile created successfully:', profileInsertData);
 
       // Create role-specific record
       if (role === 'student') {
-        console.log('Creating student record for user:', userId);
-        console.log('Student data to insert:', {
+        console.log('🎓 Creating student record for user:', userId);
+        const studentInsertData = {
           user_id: userId,
           name: data.name,
           email: email,
@@ -420,23 +446,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
           cgpa: data.cgpa || 0,
           skills: data.skills || [],
           placement_status: 'NOT_PLACED',
-        });
+        };
+        console.log('📋 Student data to insert:', studentInsertData);
         
         const { data: studentData, error: studentError } = await supabase
           .from('students')
-          .insert({
-            user_id: userId,
-            name: data.name,
-            email: email,
-            roll_number: data.rollNumber,
-            phone: data.phone,
-            dob: data.dob || null,
-            branch: data.branch,
-            year: data.year || 4,
-            cgpa: data.cgpa || 0,
-            skills: data.skills || [],
-            placement_status: 'NOT_PLACED',
-          })
+          .insert(studentInsertData)
           .select()
           .single();
         
@@ -448,7 +463,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
             hint: studentError.hint,
             code: studentError.code
           });
-          return { success: false, message: 'Failed to create student record: ' + studentError.message };
+          
+          // Provide more helpful error messages
+          let errorMessage = 'Failed to create student record: ' + studentError.message;
+          if (studentError.code === '42501' || studentError.message.includes('policy')) {
+            errorMessage = 'Permission denied. Please ensure your account has been fully verified. If you just registered, please check your email for a confirmation link.';
+          } else if (studentError.code === '23505') {
+            errorMessage = 'A student record already exists for this account.';
+          } else if (studentError.code === '23503') {
+            errorMessage = 'Invalid reference. Please try registering again.';
+          }
+          
+          return { success: false, message: errorMessage };
         }
         
         if (!studentData) {
@@ -457,7 +483,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
         
         console.log('✅ Student record created successfully:', studentData);
-        console.log('Student ID:', studentData.id, 'User ID:', studentData.user_id);
+        console.log('🆔 Student ID:', studentData.id, 'User ID:', studentData.user_id);
       } else if (role === 'recruiter') {
         console.log('Creating recruiter record for user:', userId);
         const { data: recruiterData, error: recruiterError } = await supabase
@@ -539,13 +565,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
       }
 
       // Verify all records were created
-      console.log('Verifying records were created...');
+      console.log('🔍 Verifying records were created...');
       
-      const { data: verifyProfile } = await supabase
+      const { data: verifyProfile, error: verifyProfileError } = await supabase
         .from('profiles')
         .select('id, email, role')
         .eq('id', userId)
         .single();
+      
+      if (verifyProfileError) {
+        console.error('❌ Profile verification query error:', verifyProfileError);
+        return { success: false, message: 'Failed to verify profile: ' + verifyProfileError.message };
+      }
       
       if (!verifyProfile) {
         console.error('❌ VERIFICATION FAILED: Profile not found after insert');
@@ -554,23 +585,39 @@ export function AppProvider({ children }: { children: ReactNode }) {
       console.log('✅ Profile verified:', verifyProfile);
       
       if (role === 'student') {
-        const { data: verifyStudent } = await supabase
+        const { data: verifyStudent, error: verifyStudentError } = await supabase
           .from('students')
-          .select('id, user_id, name, email, roll_number')
+          .select('id, user_id, name, email, roll_number, branch, cgpa')
           .eq('user_id', userId)
           .single();
         
+        if (verifyStudentError) {
+          console.error('❌ Student verification query error:', verifyStudentError);
+          console.error('Error details:', {
+            message: verifyStudentError.message,
+            code: verifyStudentError.code,
+            details: verifyStudentError.details
+          });
+          return { success: false, message: 'Failed to verify student record: ' + verifyStudentError.message };
+        }
+        
         if (!verifyStudent) {
           console.error('❌ VERIFICATION FAILED: Student record not found after insert');
+          console.error('User ID we searched for:', userId);
           return { success: false, message: 'Student record was not created. Please contact support.' };
         }
         console.log('✅ Student record verified:', verifyStudent);
       } else if (role === 'recruiter') {
-        const { data: verifyRecruiter } = await supabase
+        const { data: verifyRecruiter, error: verifyRecruiterError } = await supabase
           .from('recruiters')
           .select('id, user_id, company_name')
           .eq('user_id', userId)
           .single();
+        
+        if (verifyRecruiterError) {
+          console.error('❌ Recruiter verification query error:', verifyRecruiterError);
+          return { success: false, message: 'Failed to verify recruiter record: ' + verifyRecruiterError.message };
+        }
         
         if (!verifyRecruiter) {
           console.error('❌ VERIFICATION FAILED: Recruiter record not found after insert');
@@ -578,11 +625,16 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
         console.log('✅ Recruiter record verified:', verifyRecruiter);
       } else if (role === 'admin') {
-        const { data: verifyAdmin } = await supabase
+        const { data: verifyAdmin, error: verifyAdminError } = await supabase
           .from('admins')
           .select('id, user_id, name')
           .eq('user_id', userId)
           .single();
+        
+        if (verifyAdminError) {
+          console.error('❌ Admin verification query error:', verifyAdminError);
+          return { success: false, message: 'Failed to verify admin record: ' + verifyAdminError.message };
+        }
         
         if (!verifyAdmin) {
           console.error('❌ VERIFICATION FAILED: Admin record not found after insert');
@@ -591,12 +643,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
         console.log('✅ Admin record verified:', verifyAdmin);
       }
       
-      console.log('✅ All records verified successfully');
+      console.log('✅✅✅ ALL RECORDS VERIFIED SUCCESSFULLY ✅✅✅');
       
+      console.log('🔄 Loading user profile and refreshing data...');
       await loadUserProfile(userId, email);
       await refreshData();
-      return { success: true, message: 'Registration successful' };
+      
+      console.log('🎉🎉🎉 REGISTRATION COMPLETE AND VERIFIED 🎉🎉🎉');
+      return { success: true, message: 'Registration successful! Welcome to the platform.' };
     } catch (err: any) {
+      console.error('💥 UNEXPECTED ERROR during registration:', err);
+      console.error('Error stack:', err.stack);
       return { success: false, message: err.message || 'Registration failed' };
     }
   };
