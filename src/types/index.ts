@@ -17,7 +17,6 @@ export interface Student {
   id: string;
   userId: string;
   name: string;
-  email?: string;
   rollNumber: string;
   phone: string;
   dob: string;
