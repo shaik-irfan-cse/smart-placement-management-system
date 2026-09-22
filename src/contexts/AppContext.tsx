@@ -437,7 +437,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
         const studentInsertData = {
           user_id: userId,
           name: data.name,
-          email: email,
           roll_number: data.rollNumber,
           phone: data.phone,
           dob: data.dob || null,
@@ -587,7 +586,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       if (role === 'student') {
         const { data: verifyStudent, error: verifyStudentError } = await supabase
           .from('students')
-          .select('id, user_id, name, email, roll_number, branch, cgpa')
+          .select('id, user_id, name, roll_number, branch, cgpa')
           .eq('user_id', userId)
           .single();
         

@@ -15,11 +15,11 @@ export const sampleUsers: User[] = [
 ];
 
 export const sampleStudents: Student[] = [
-  { id: 's1', userId: 'u1', name: 'Arjun Kumar', email: 'arjun@college.edu', rollNumber: '21CS001', phone: '9876543210', dob: '2003-05-15', branch: 'CSE', year: 4, cgpa: 8.5, skills: ['Java', 'Python', 'React', 'SQL'], placementStatus: 'IN_PROCESS' },
-  { id: 's2', userId: 'u2', name: 'Rahul Sharma', email: 'rahul@college.edu', rollNumber: '21CS002', phone: '9876543211', dob: '2003-07-22', branch: 'CSE', year: 4, cgpa: 7.8, skills: ['Python', 'Machine Learning', 'SQL'], placementStatus: 'IN_PROCESS' },
-  { id: 's3', userId: 'u3', name: 'Sneha Reddy', email: 'sneha@college.edu', rollNumber: '21IT003', phone: '9876543212', dob: '2003-03-10', branch: 'IT', year: 4, cgpa: 9.1, skills: ['JavaScript', 'React', 'Node.js', 'MongoDB'], placementStatus: 'PLACED' },
-  { id: 's4', userId: 'u4', name: 'Priya Singh', email: 'priya@college.edu', rollNumber: '21EC004', phone: '9876543213', dob: '2003-09-05', branch: 'ECE', year: 4, cgpa: 8.2, skills: ['C++', 'VLSI', 'Python', 'MATLAB'], placementStatus: 'IN_PROCESS' },
-  { id: 's5', userId: 'u5', name: 'Kiran Kumar', email: 'kiran@college.edu', rollNumber: '21ME005', phone: '9876543214', dob: '2003-11-20', branch: 'ME', year: 4, cgpa: 7.2, skills: ['AutoCAD', 'Python', 'SolidWorks'], placementStatus: 'NOT_PLACED' },
+  { id: 's1', userId: 'u1', name: 'Arjun Kumar', rollNumber: '21CS001', phone: '9876543210', dob: '2003-05-15', branch: 'CSE', year: 4, cgpa: 8.5, skills: ['Java', 'Python', 'React', 'SQL'], placementStatus: 'IN_PROCESS' },
+  { id: 's2', userId: 'u2', name: 'Rahul Sharma', rollNumber: '21CS002', phone: '9876543211', dob: '2003-07-22', branch: 'CSE', year: 4, cgpa: 7.8, skills: ['Python', 'Machine Learning', 'SQL'], placementStatus: 'IN_PROCESS' },
+  { id: 's3', userId: 'u3', name: 'Sneha Reddy', rollNumber: '21IT003', phone: '9876543212', dob: '2003-03-10', branch: 'IT', year: 4, cgpa: 9.1, skills: ['JavaScript', 'React', 'Node.js', 'MongoDB'], placementStatus: 'PLACED' },
+  { id: 's4', userId: 'u4', name: 'Priya Singh', rollNumber: '21EC004', phone: '9876543213', dob: '2003-09-05', branch: 'ECE', year: 4, cgpa: 8.2, skills: ['C++', 'VLSI', 'Python', 'MATLAB'], placementStatus: 'IN_PROCESS' },
+  { id: 's5', userId: 'u5', name: 'Kiran Kumar', rollNumber: '21ME005', phone: '9876543214', dob: '2003-11-20', branch: 'ME', year: 4, cgpa: 7.2, skills: ['AutoCAD', 'Python', 'SolidWorks'], placementStatus: 'NOT_PLACED' },
 ];
 
 export const sampleAdmins: Admin[] = [
