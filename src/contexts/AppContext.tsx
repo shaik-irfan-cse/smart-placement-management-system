@@ -574,7 +574,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
           user_id: userId,
           company_name: data.companyName,
           recruiter_name: data.recruiterName,
-          email: email,
           phone: data.phone,
           address: data.address || '',
           website: data.website || '',
