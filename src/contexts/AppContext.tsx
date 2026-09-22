@@ -561,10 +561,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
           };
         }
         
+        // Verify session is still active before insert
+        console.log('🔐 Verifying session before recruiter INSERT...');
+        const { data: sessionCheck, error: sessionCheckError } = await supabase.auth.getSession();
+        if (sessionCheckError || !sessionCheck.session) {
+          console.error('❌ Session not active before recruiter INSERT:', sessionCheckError);
+          return { success: false, message: 'Session expired. Please try registering again.' };
+        }
+        console.log('✅ Session verified, current user ID:', sessionCheck.session.user.id);
+        
         const recruiterInsertData = {
           user_id: userId,
           company_name: data.companyName,
           recruiter_name: data.recruiterName,
+          email: email,
           phone: data.phone,
           address: data.address || '',
           website: data.website || '',
@@ -572,6 +582,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           approval_status: 'PENDING',
         };
         console.log('📋 Recruiter data to insert:', recruiterInsertData);
+        console.log('🔍 Attempting INSERT with user_id:', userId);
         
         const { data: recruiterData, error: recruiterError } = await supabase
           .from('recruiters')
@@ -579,20 +590,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
           .select()
           .single();
         
+        console.log('📊 INSERT response:', { recruiterData, recruiterError });
+        
         if (recruiterError) {
           console.error('❌ Recruiter creation FAILED:', recruiterError);
+          console.error('Full error object:', JSON.stringify(recruiterError, null, 2));
           console.error('Error details:', {
             message: recruiterError.message,
             details: recruiterError.details,
             hint: recruiterError.hint,
-            code: recruiterError.code
+            code: recruiterError.code,
+            name: recruiterError.name
           });
           
           let errorMessage = 'Failed to create recruiter record: ' + recruiterError.message;
-          if (recruiterError.code === '42501' || recruiterError.message.includes('policy')) {
-            errorMessage = 'Permission denied. Please ensure your account has been fully verified.';
+          if (recruiterError.code === '42501' || recruiterError.message.includes('policy') || recruiterError.message.includes('RLS')) {
+            errorMessage = 'Permission denied. RLS policy blocked the insert. Error: ' + recruiterError.message;
           } else if (recruiterError.code === '23505') {
             errorMessage = 'A recruiter record already exists for this account.';
+          } else if (recruiterError.code === '23503') {
+            errorMessage = 'Foreign key constraint violation. The user_id does not exist in profiles table.';
+          } else if (recruiterError.code === '23502') {
+            errorMessage = 'Missing required field. Error: ' + recruiterError.message;
           }
           
           return { success: false, message: errorMessage };
@@ -605,6 +624,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
         
         console.log('✅ Recruiter record created successfully:', recruiterData);
         console.log('🆔 Recruiter ID:', recruiterData.id, 'User ID:', recruiterData.user_id);
+
+        // Verify the record was actually created by querying it back
+        console.log('🔍 Verifying recruiter record exists in database...');
+        const { data: verifyData, error: verifyError } = await supabase
+          .from('recruiters')
+          .select('id, user_id, company_name')
+          .eq('user_id', userId)
+          .single();
+        
+        if (verifyError || !verifyData) {
+          console.error('❌ VERIFICATION FAILED: Recruiter record not found after insert');
+          console.error('Verification error:', verifyError);
+          console.error('This suggests the INSERT succeeded but RLS is blocking the SELECT');
+        } else {
+          console.log('✅ Verification successful:', verifyData);
+        }
 
         // Notify admins about new registration
         const { data: adminProfiles } = await supabase.from('profiles').select('id').eq('role', 'admin');
