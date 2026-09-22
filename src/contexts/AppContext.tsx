@@ -367,8 +367,33 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       console.log('🚀 Starting registration for:', email);
       
-      // Create Supabase Auth user
-      const { data: authData, error: authError } = await supabase.auth.signUp({ email, password });
+      // Create Supabase Auth user with metadata
+      console.log('📝 Preparing auth signup with metadata:', {
+        email,
+        role,
+        name: data.name,
+        rollNumber: data.rollNumber,
+        phone: data.phone,
+        branch: data.branch,
+        cgpa: data.cgpa
+      });
+      
+      const { data: authData, error: authError } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            name: data.name,
+            rollNumber: data.rollNumber,
+            phone: data.phone,
+            branch: data.branch,
+            cgpa: data.cgpa,
+            skills: data.skills,
+            role: role
+          }
+        }
+      });
+      
       if (authError) {
         console.error('❌ Auth signup error:', authError);
         return { success: false, message: authError.message };
@@ -381,6 +406,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
       const userId = authData.user.id;
       console.log('✅ Auth user created with ID:', userId);
       console.log('📧 Email confirmed at:', authData.user.email_confirmed_at);
+      console.log('📋 User metadata:', authData.user.user_metadata);
 
       // CRITICAL: Ensure the session is fully established before database operations
       // Wait a moment for the session to be fully established
@@ -434,6 +460,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
       // Create role-specific record
       if (role === 'student') {
         console.log('🎓 Creating student record for user:', userId);
+        
+        // Validate required student data
+        if (!data.name || !data.rollNumber || !data.branch) {
+          console.error('❌ Missing required student data:', {
+            name: data.name,
+            rollNumber: data.rollNumber,
+            branch: data.branch,
+            phone: data.phone,
+            cgpa: data.cgpa
+          });
+          return { 
+            success: false, 
+            message: 'Missing required student information. Please ensure all fields are filled.' 
+          };
+        }
+        
         const studentInsertData = {
           user_id: userId,
           name: data.name,
@@ -485,6 +527,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
         console.log('🆔 Student ID:', studentData.id, 'User ID:', studentData.user_id);
       } else if (role === 'recruiter') {
         console.log('Creating recruiter record for user:', userId);
+        
+        // Validate required recruiter data
+        if (!data.companyName || !data.recruiterName) {
+          console.error('❌ Missing required recruiter data:', {
+            companyName: data.companyName,
+            recruiterName: data.recruiterName,
+            phone: data.phone
+          });
+          return { 
+            success: false, 
+            message: 'Missing required recruiter information. Please ensure all fields are filled.' 
+          };
+        }
+        
         const { data: recruiterData, error: recruiterError } = await supabase
           .from('recruiters')
           .insert({
@@ -532,6 +588,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
       } else if (role === 'admin') {
         console.log('Creating admin record for user:', userId);
+        
+        // Validate required admin data
+        if (!data.name || !data.rollNumber) {
+          console.error('❌ Missing required admin data:', {
+            name: data.name,
+            rollNumber: data.rollNumber,
+            phone: data.phone
+          });
+          return { 
+            success: false, 
+            message: 'Missing required admin information. Please ensure all fields are filled.' 
+          };
+        }
+        
         const { data: adminData, error: adminError } = await supabase
           .from('admins')
           .insert({
