@@ -367,30 +367,51 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       console.log('🚀 Starting registration for:', email);
       
-      // Create Supabase Auth user with metadata
+      // Build role-specific metadata
+      let userMetadata: any = { role: role };
+      
+      if (role === 'student') {
+        userMetadata = {
+          ...userMetadata,
+          name: data.name,
+          rollNumber: data.rollNumber,
+          phone: data.phone,
+          branch: data.branch,
+          cgpa: data.cgpa,
+          skills: data.skills
+        };
+      } else if (role === 'recruiter') {
+        userMetadata = {
+          ...userMetadata,
+          companyName: data.companyName,
+          recruiterName: data.recruiterName,
+          phone: data.phone,
+          email: email,
+          address: data.address,
+          website: data.website,
+          description: data.description
+        };
+      } else if (role === 'admin') {
+        userMetadata = {
+          ...userMetadata,
+          name: data.name,
+          employeeId: data.rollNumber,
+          phone: data.phone,
+          department: data.department
+        };
+      }
+      
       console.log('📝 Preparing auth signup with metadata:', {
         email,
         role,
-        name: data.name,
-        rollNumber: data.rollNumber,
-        phone: data.phone,
-        branch: data.branch,
-        cgpa: data.cgpa
+        metadata: userMetadata
       });
       
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            name: data.name,
-            rollNumber: data.rollNumber,
-            phone: data.phone,
-            branch: data.branch,
-            cgpa: data.cgpa,
-            skills: data.skills,
-            role: role
-          }
+          data: userMetadata
         }
       });
       
@@ -526,7 +547,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         console.log('✅ Student record created successfully:', studentData);
         console.log('🆔 Student ID:', studentData.id, 'User ID:', studentData.user_id);
       } else if (role === 'recruiter') {
-        console.log('Creating recruiter record for user:', userId);
+        console.log('💼 Creating recruiter record for user:', userId);
         
         // Validate required recruiter data
         if (!data.companyName || !data.recruiterName) {
@@ -541,19 +562,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
           };
         }
         
+        const recruiterInsertData = {
+          user_id: userId,
+          company_name: data.companyName,
+          recruiter_name: data.recruiterName,
+          email: email,
+          phone: data.phone,
+          address: data.address || '',
+          website: data.website || '',
+          description: data.description || '',
+          approval_status: 'PENDING',
+        };
+        console.log('📋 Recruiter data to insert:', recruiterInsertData);
+        
         const { data: recruiterData, error: recruiterError } = await supabase
           .from('recruiters')
-          .insert({
-            user_id: userId,
-            company_name: data.companyName,
-            recruiter_name: data.recruiterName,
-            email: email,
-            phone: data.phone,
-            address: data.address || '',
-            website: data.website || '',
-            description: data.description || '',
-            approval_status: 'PENDING',
-          })
+          .insert(recruiterInsertData)
           .select()
           .single();
         
@@ -565,7 +589,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
             hint: recruiterError.hint,
             code: recruiterError.code
           });
-          return { success: false, message: 'Failed to create recruiter record: ' + recruiterError.message };
+          
+          let errorMessage = 'Failed to create recruiter record: ' + recruiterError.message;
+          if (recruiterError.code === '42501' || recruiterError.message.includes('policy')) {
+            errorMessage = 'Permission denied. Please ensure your account has been fully verified.';
+          } else if (recruiterError.code === '23505') {
+            errorMessage = 'A recruiter record already exists for this account.';
+          }
+          
+          return { success: false, message: errorMessage };
         }
         
         if (!recruiterData) {
@@ -574,6 +606,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
         
         console.log('✅ Recruiter record created successfully:', recruiterData);
+        console.log('🆔 Recruiter ID:', recruiterData.id, 'User ID:', recruiterData.user_id);
 
         // Notify admins about new registration
         const { data: adminProfiles } = await supabase.from('profiles').select('id').eq('role', 'admin');
@@ -587,7 +620,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
           });
         }
       } else if (role === 'admin') {
-        console.log('Creating admin record for user:', userId);
+        console.log('👨‍💼 Creating admin record for user:', userId);
         
         // Validate required admin data
         if (!data.name || !data.rollNumber) {
@@ -602,15 +635,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
           };
         }
         
+        const adminInsertData = {
+          user_id: userId,
+          name: data.name,
+          employee_id: data.rollNumber,
+          phone: data.phone,
+          department: data.department || 'Training & Placement',
+        };
+        console.log('📋 Admin data to insert:', adminInsertData);
+        
         const { data: adminData, error: adminError } = await supabase
           .from('admins')
-          .insert({
-            user_id: userId,
-            name: data.name,
-            employee_id: data.rollNumber,
-            phone: data.phone,
-            department: data.department || 'Training & Placement',
-          })
+          .insert(adminInsertData)
           .select()
           .single();
         
