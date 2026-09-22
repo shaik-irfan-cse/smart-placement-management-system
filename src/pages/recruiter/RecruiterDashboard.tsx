@@ -203,7 +203,7 @@ function DashboardHome() {
 }
 
 function CompanyProfilePage() {
-  const { currentRecruiter, loading } = useApp();
+  const { currentRecruiter, currentUser, loading } = useApp();
   
   if (loading) {
     return (
@@ -261,7 +261,7 @@ function CompanyProfilePage() {
 
         <div className="grid grid-cols-2 gap-6">
           <div><p className="text-xs text-gray-500 mb-1">Recruiter Name</p><p className="font-medium text-sm">{currentRecruiter.recruiterName}</p></div>
-          <div><p className="text-xs text-gray-500 mb-1">Email</p><p className="font-medium text-sm break-all">{currentRecruiter.email}</p></div>
+          <div><p className="text-xs text-gray-500 mb-1">Email</p><p className="font-medium text-sm break-all">{currentUser?.email || 'N/A'}</p></div>
           <div><p className="text-xs text-gray-500 mb-1">Phone</p><p className="font-medium text-sm">{currentRecruiter.phone}</p></div>
           <div><p className="text-xs text-gray-500 mb-1">Website</p><p className="font-medium text-sm">{currentRecruiter.website || 'N/A'}</p></div>
           <div className="col-span-2"><p className="text-xs text-gray-500 mb-1">Address</p><p className="font-medium text-sm">{currentRecruiter.address || 'N/A'}</p></div>

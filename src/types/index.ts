@@ -42,7 +42,7 @@ export interface Recruiter {
   userId: string;
   companyName: string;
   recruiterName: string;
-  email: string;
+  email?: string;
   phone: string;
   address: string;
   website: string;
