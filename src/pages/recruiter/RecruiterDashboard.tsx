@@ -17,9 +17,71 @@ const navItems = [
 ];
 
 export default function RecruiterDashboard() {
-  const { currentRecruiter } = useApp();
+  const { currentRecruiter, loading, currentUser } = useApp();
   const location = useLocation();
   const path = location.pathname;
+
+  // Show loading state
+  if (loading) {
+    return (
+      <DashboardLayout navItems={navItems} role="recruiter" userName="Recruiter">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading your dashboard...</p>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
+
+  // Show error state if recruiter record doesn't exist
+  if (currentUser && !currentRecruiter) {
+    return (
+      <DashboardLayout navItems={navItems} role="recruiter" userName="Recruiter">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center max-w-md">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <AlertCircle className="w-8 h-8 text-red-600" />
+            </div>
+            <h2 className="text-xl font-bold text-gray-900 mb-2">Recruiter Record Not Found</h2>
+            <p className="text-gray-600 mb-4">
+              Your account is authenticated, but we couldn't find your recruiter record in the database.
+            </p>
+            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4 text-left">
+              <p className="text-sm font-medium text-yellow-800 mb-2">Possible causes:</p>
+              <ul className="text-sm text-yellow-700 space-y-1">
+                <li>• Registration didn't complete successfully</li>
+                <li>• Company approval is pending</li>
+                <li>• Database synchronization delay</li>
+              </ul>
+            </div>
+            <p className="text-sm text-gray-500 mb-6">
+              Please contact the placement cell if the issue persists.
+            </p>
+            <div className="flex gap-3 justify-center">
+              <button
+                onClick={() => window.location.reload()}
+                className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+              >
+                Retry Loading
+              </button>
+              <button
+                onClick={async () => {
+                  const { supabase } = await import('../../lib/supabase');
+                  await supabase.auth.signOut();
+                  window.location.href = '/login/recruiter';
+                }}
+                className="px-4 py-2 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 transition-colors"
+              >
+                Logout & Try Again
+              </button>
+            </div>
+          </div>
+        </div>
+      </DashboardLayout>
+    );
+  }
 
   const renderPage = () => {
     if (path.startsWith('/recruiter/profile')) return <CompanyProfilePage />;
@@ -39,8 +101,29 @@ export default function RecruiterDashboard() {
 }
 
 function DashboardHome() {
-  const { currentRecruiter, jobDrives, applications, testResults, students } = useApp();
-  if (!currentRecruiter) return null;
+  const { currentRecruiter, jobDrives, applications, testResults, students, loading } = useApp();
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+  
+  if (!currentRecruiter) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-yellow-600" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Unable to Load Dashboard</h2>
+          <p className="text-gray-600">Please refresh the page or contact support if the issue persists.</p>
+        </div>
+      </div>
+    );
+  }
 
   const myDrives = jobDrives.filter(jd => jd.recruiterId === currentRecruiter.id);
   const myDriveIds = myDrives.map(d => d.id);
@@ -120,8 +203,29 @@ function DashboardHome() {
 }
 
 function CompanyProfilePage() {
-  const { currentRecruiter } = useApp();
-  if (!currentRecruiter) return null;
+  const { currentRecruiter, loading } = useApp();
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+  
+  if (!currentRecruiter) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-yellow-600" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Unable to Load Profile</h2>
+          <p className="text-gray-600">Please refresh the page or contact support.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -169,7 +273,7 @@ function CompanyProfilePage() {
 }
 
 function JobDrivesPage() {
-  const { currentRecruiter, jobDrives, addJobDrive, updateJobDrive, deleteJobDrive, applications } = useApp();
+  const { currentRecruiter, jobDrives, addJobDrive, updateJobDrive, deleteJobDrive, applications, loading } = useApp();
   const [showCreate, setShowCreate] = useState(false);
   const [editingDrive, setEditingDrive] = useState<JobDrive | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
@@ -179,7 +283,27 @@ function JobDrivesPage() {
     openings: '10', deadline: '', testDuration: '30', testPassPercentage: '60',
   });
 
-  if (!currentRecruiter) return null;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!currentRecruiter) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-yellow-600" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Unable to Load Job Drives</h2>
+          <p className="text-gray-600">Please refresh the page or contact support.</p>
+        </div>
+      </div>
+    );
+  }
 
   const myDrives = jobDrives.filter(jd => jd.recruiterId === currentRecruiter.id);
 
@@ -380,13 +504,33 @@ function JobDrivesPage() {
 }
 
 function ApplicationsPage() {
-  const { currentRecruiter, jobDrives, applications, students, testResults, updateApplicationStatus, addNotification, addPlacement } = useApp();
+  const { currentRecruiter, jobDrives, applications, students, testResults, updateApplicationStatus, addNotification, addPlacement, loading } = useApp();
   const [filterDrive, setFilterDrive] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [selectedApp, setSelectedApp] = useState<string | null>(null);
   const [confirmAction, setConfirmAction] = useState<{ appId: string; action: 'SELECTED' | 'REJECTED' } | null>(null);
 
-  if (!currentRecruiter) return null;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+
+  if (!currentRecruiter) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-yellow-600" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Unable to Load Applications</h2>
+          <p className="text-gray-600">Please refresh the page or contact support.</p>
+        </div>
+      </div>
+    );
+  }
 
   const myDriveIds = jobDrives.filter(jd => jd.recruiterId === currentRecruiter.id).map(d => d.id);
   const myApps = applications.filter(a => myDriveIds.includes(a.jobDriveId));
@@ -531,8 +675,29 @@ function ApplicationsPage() {
 }
 
 function CandidatesPage() {
-  const { currentRecruiter, jobDrives, applications, students, testResults } = useApp();
-  if (!currentRecruiter) return null;
+  const { currentRecruiter, jobDrives, applications, students, testResults, loading } = useApp();
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+  
+  if (!currentRecruiter) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-yellow-600" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Unable to Load Candidates</h2>
+          <p className="text-gray-600">Please refresh the page or contact support.</p>
+        </div>
+      </div>
+    );
+  }
 
   const myDriveIds = jobDrives.filter(jd => jd.recruiterId === currentRecruiter.id).map(d => d.id);
   const passedApps = applications.filter(a => myDriveIds.includes(a.jobDriveId) && (a.status === 'PASSED' || a.status === 'UNDER_REVIEW' || a.status === 'SELECTED'));
@@ -575,8 +740,29 @@ function CandidatesPage() {
 }
 
 function TestResultsPage() {
-  const { currentRecruiter, jobDrives, testResults, students } = useApp();
-  if (!currentRecruiter) return null;
+  const { currentRecruiter, jobDrives, testResults, students, loading } = useApp();
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+  
+  if (!currentRecruiter) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-yellow-600" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Unable to Load Test Results</h2>
+          <p className="text-gray-600">Please refresh the page or contact support.</p>
+        </div>
+      </div>
+    );
+  }
 
   const myDriveIds = jobDrives.filter(jd => jd.recruiterId === currentRecruiter.id).map(d => d.id);
   const myResults = testResults.filter(r => myDriveIds.includes(r.jobDriveId));
@@ -625,8 +811,29 @@ function TestResultsPage() {
 }
 
 function NotificationsPage() {
-  const { currentUser, notifications, markNotificationRead } = useApp();
-  if (!currentUser) return null;
+  const { currentUser, notifications, markNotificationRead, loading } = useApp();
+  
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="w-12 h-12 border-4 border-indigo-200 border-t-indigo-600 rounded-full animate-spin"></div>
+      </div>
+    );
+  }
+  
+  if (!currentUser) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-4">
+            <AlertCircle className="w-8 h-8 text-yellow-600" />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Unable to Load Notifications</h2>
+          <p className="text-gray-600">Please refresh the page or contact support.</p>
+        </div>
+      </div>
+    );
+  }
 
   const myNotifs = notifications.filter(n => n.userId === currentUser.id).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
