@@ -820,9 +820,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const addApplication = async (app: Omit<Application, 'id' | 'appliedAt' | 'updatedAt'>) => {
-    // Check for duplicate
+    console.log('📝 Attempting to create application:', {
+      studentId: app.studentId,
+      jobDriveId: app.jobDriveId,
+      status: app.status
+    });
+
+    // Check for duplicate in local state
     const existing = state.applications.find(a => a.studentId === app.studentId && a.jobDriveId === app.jobDriveId);
-    if (existing) return null;
+    if (existing) {
+      console.log('⚠️ Duplicate application found in local state');
+      return null;
+    }
 
     const { data, error } = await supabase
       .from('applications')
@@ -835,10 +844,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
       .single();
 
     if (error) {
-      console.error('Application error:', error);
-      return null;
+      console.error('❌ Application INSERT failed:', error);
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+      
+      // Return error information instead of just null
+      throw new Error(error.message || 'Failed to create application');
     }
 
+    console.log('✅ Application created successfully:', data);
     await refreshData();
     return data ? mapApplication(data) : null;
   };
