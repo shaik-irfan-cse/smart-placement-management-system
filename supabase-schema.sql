@@ -181,14 +181,26 @@ CREATE POLICY "Users can update own profile" ON profiles
 
 -- Students: Students can view/insert/update own, admins can view all
 CREATE POLICY "Students can view own record" ON students
-  FOR SELECT USING (user_id = auth.uid());
+  FOR SELECT
+  TO authenticated
+  USING (user_id = auth.uid());
 CREATE POLICY "Students can insert own record" ON students
-  FOR INSERT WITH CHECK (user_id = auth.uid());
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (user_id = auth.uid());
 CREATE POLICY "Students can update own record" ON students
-  FOR UPDATE USING (user_id = auth.uid());
+  FOR UPDATE
+  TO authenticated
+  USING (user_id = auth.uid());
 CREATE POLICY "Admins can view all students" ON students
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+  FOR SELECT
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE profiles.id = auth.uid() 
+      AND profiles.role = 'admin'
+    )
   );
 
 -- Admins: Admins can view/insert/update own, admins can view all
@@ -220,27 +232,93 @@ CREATE POLICY "Admins can update recruiters" ON recruiters
   );
 
 -- Job Drives: Everyone can view active drives, recruiters manage own, admins manage all
-CREATE POLICY "Anyone can view active job drives" ON job_drives
-  FOR SELECT USING (true);
+CREATE POLICY "Anyone can view job drives" ON job_drives
+  FOR SELECT
+  TO authenticated
+  USING (true);
 CREATE POLICY "Recruiters can manage own job drives" ON job_drives
-  FOR ALL USING (recruiter_id IN (SELECT id FROM recruiters WHERE user_id = auth.uid()));
+  FOR ALL
+  TO authenticated
+  USING (
+    recruiter_id IN (
+      SELECT id FROM recruiters WHERE user_id = auth.uid()
+    )
+  );
 CREATE POLICY "Admins can manage all job drives" ON job_drives
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+  FOR ALL
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE profiles.id = auth.uid() 
+      AND profiles.role = 'admin'
+    )
   );
 
 -- Applications: Students view own, recruiters view for their drives, admins view all
 CREATE POLICY "Students can view own applications" ON applications
-  FOR SELECT USING (student_id IN (SELECT id FROM students WHERE user_id = auth.uid()));
+  FOR SELECT
+  TO authenticated
+  USING (
+    student_id IN (
+      SELECT id 
+      FROM students 
+      WHERE user_id = auth.uid()
+    )
+  );
 CREATE POLICY "Students can create own applications" ON applications
-  FOR INSERT WITH CHECK (student_id IN (SELECT id FROM students WHERE user_id = auth.uid()));
+  FOR INSERT
+  TO authenticated
+  WITH CHECK (
+    student_id IN (
+      SELECT id 
+      FROM students 
+      WHERE user_id = auth.uid()
+    )
+  );
+CREATE POLICY "Students can update own applications" ON applications
+  FOR UPDATE
+  TO authenticated
+  USING (
+    student_id IN (
+      SELECT id 
+      FROM students 
+      WHERE user_id = auth.uid()
+    )
+  );
 CREATE POLICY "Recruiters can view applications for their drives" ON applications
-  FOR SELECT USING (job_drive_id IN (SELECT id FROM job_drives WHERE recruiter_id IN (SELECT id FROM recruiters WHERE user_id = auth.uid())));
+  FOR SELECT
+  TO authenticated
+  USING (
+    job_drive_id IN (
+      SELECT id 
+      FROM job_drives 
+      WHERE recruiter_id IN (
+        SELECT id FROM recruiters WHERE user_id = auth.uid()
+      )
+    )
+  );
 CREATE POLICY "Recruiters can update applications for their drives" ON applications
-  FOR UPDATE USING (job_drive_id IN (SELECT id FROM job_drives WHERE recruiter_id IN (SELECT id FROM recruiters WHERE user_id = auth.uid())));
+  FOR UPDATE
+  TO authenticated
+  USING (
+    job_drive_id IN (
+      SELECT id 
+      FROM job_drives 
+      WHERE recruiter_id IN (
+        SELECT id FROM recruiters WHERE user_id = auth.uid()
+      )
+    )
+  );
 CREATE POLICY "Admins can manage all applications" ON applications
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+  FOR ALL
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE profiles.id = auth.uid() 
+      AND profiles.role = 'admin'
+    )
   );
 
 -- Test Questions: Everyone authenticated can view

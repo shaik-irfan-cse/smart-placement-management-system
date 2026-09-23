@@ -53,6 +53,7 @@ CREATE POLICY "Admins can view all students" ON students
 
 -- Students can INSERT applications using their own student_id
 -- The subquery MUST be able to SELECT from students table (which we fixed above)
+-- IMPORTANT: Use IN instead of = to handle edge cases
 CREATE POLICY "Students can create own applications" ON applications
   FOR INSERT
   TO authenticated
