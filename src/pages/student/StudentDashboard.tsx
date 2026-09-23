@@ -278,16 +278,55 @@ function JobDrivesPage() {
   };
 
   const handleApply = async () => {
-    if (!eligibilityResult?.eligible || !selectedDrive || !currentUser) return;
-    const app = await addApplication({ studentId: currentStudent.id, jobDriveId: selectedDrive.id, status: 'APPLIED' });
-    if (app) {
-      await addNotification(currentUser.id, 'Application Submitted', `Your application for ${selectedDrive.jobRole} at ${selectedDrive.companyName} has been submitted.`, 'success');
-      showToast('Application submitted successfully!', 'success');
-      setShowApplyModal(false);
-      setSelectedDrive(null);
-      setEligibilityResult(null);
-    } else {
-      showToast('Failed to submit application. You may have already applied.', 'error');
+    if (!eligibilityResult?.eligible || !selectedDrive || !currentUser) {
+      console.error('❌ Cannot apply: Missing required data', {
+        eligible: eligibilityResult?.eligible,
+        hasSelectedDrive: !!selectedDrive,
+        hasCurrentUser: !!currentUser,
+        hasCurrentStudent: !!currentStudent
+      });
+      return;
+    }
+
+    if (!currentStudent) {
+      console.error('❌ currentStudent is null - cannot apply');
+      showToast('Student profile not loaded. Please refresh the page and try again.', 'error');
+      return;
+    }
+
+    console.log('🎯 Applying for job:', {
+      studentId: currentStudent.id,
+      studentUserId: currentStudent.userId,
+      jobDriveId: selectedDrive.id,
+      jobRole: selectedDrive.jobRole,
+      companyName: selectedDrive.companyName
+    });
+
+    try {
+      const app = await addApplication({ studentId: currentStudent.id, jobDriveId: selectedDrive.id, status: 'APPLIED' });
+      if (app) {
+        await addNotification(currentUser.id, 'Application Submitted', `Your application for ${selectedDrive.jobRole} at ${selectedDrive.companyName} has been submitted.`, 'success');
+        showToast('Application submitted successfully!', 'success');
+        setShowApplyModal(false);
+        setSelectedDrive(null);
+        setEligibilityResult(null);
+      } else {
+        showToast('Failed to submit application. You may have already applied.', 'error');
+      }
+    } catch (err: any) {
+      console.error('❌ Application submission error:', err);
+      const errorMessage = err.message || 'Failed to submit application';
+      
+      // Provide more specific error messages based on error codes
+      if (errorMessage.includes('duplicate') || errorMessage.includes('unique')) {
+        showToast('You have already applied for this position.', 'error');
+      } else if (errorMessage.includes('policy') || errorMessage.includes('permission')) {
+        showToast('Permission denied. Please check your eligibility and try again.', 'error');
+      } else if (errorMessage.includes('foreign key')) {
+        showToast('Invalid student or job drive reference. Please refresh and try again.', 'error');
+      } else {
+        showToast(`Application failed: ${errorMessage}`, 'error');
+      }
     }
   };
 
