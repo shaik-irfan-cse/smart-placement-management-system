@@ -1,5 +1,5 @@
 -- READ-ONLY Diagnostic Script for Student Job Application RLS Issue
--- This script DOES NOT modify any data - it only reads policy information
+-- This script contains ONLY SELECT statements - NO modifications to the database
 
 -- ============================================================
 -- STEP 1: Check RLS Status on All Tables
@@ -7,65 +7,70 @@
 SELECT 
   schemaname,
   tablename,
-  rowsecurity as rls_enabled
+  tableowner,
+  rowsecurity as rls_enabled,
+  forcerowsecurity as force_rls
 FROM pg_tables
 WHERE schemaname = 'public'
 AND tablename IN ('students', 'applications', 'job_drives', 'profiles')
 ORDER BY tablename;
 
 -- ============================================================
--- STEP 2: All Students Table Policies (READ-ONLY)
+-- STEP 2: All Students Table Policies
 -- ============================================================
 SELECT 
-  'students' as table_name,
+  schemaname,
+  tablename,
   policyname,
-  cmd as operation,
-  roles::text,
   permissive,
-  qual as using_expression,
+  roles,
+  cmd,
+  qual,
   with_check
 FROM pg_policies
 WHERE tablename = 'students'
 ORDER BY cmd, policyname;
 
 -- ============================================================
--- STEP 3: All Applications Table Policies (READ-ONLY)
+-- STEP 3: All Applications Table Policies
 -- ============================================================
 SELECT 
-  'applications' as table_name,
+  schemaname,
+  tablename,
   policyname,
-  cmd as operation,
-  roles::text,
   permissive,
-  qual as using_expression,
+  roles,
+  cmd,
+  qual,
   with_check
 FROM pg_policies
 WHERE tablename = 'applications'
 ORDER BY cmd, policyname;
 
 -- ============================================================
--- STEP 4: All Job Drives Table Policies (READ-ONLY)
+-- STEP 4: All Job Drives Table Policies
 -- ============================================================
 SELECT 
-  'job_drives' as table_name,
+  schemaname,
+  tablename,
   policyname,
-  cmd as operation,
-  roles::text,
   permissive,
-  qual as using_expression,
+  roles,
+  cmd,
+  qual,
   with_check
 FROM pg_policies
 WHERE tablename = 'job_drives'
 ORDER BY cmd, policyname;
 
 -- ============================================================
--- STEP 5: Check for Duplicate Policies (READ-ONLY)
+-- STEP 5: Check for Duplicate Policies
 -- ============================================================
 SELECT 
   tablename,
   policyname,
   cmd,
-  COUNT(*) as duplicate_count
+  COUNT(*) as policy_count
 FROM pg_policies
 WHERE tablename IN ('students', 'applications', 'job_drives')
 GROUP BY tablename, policyname, cmd
@@ -73,9 +78,8 @@ HAVING COUNT(*) > 1
 ORDER BY tablename, policyname;
 
 -- ============================================================
--- STEP 6: Check for Conflicting Policies (READ-ONLY)
+-- STEP 6: Check for Conflicting Policies
 -- ============================================================
--- Look for multiple policies on the same table+operation
 SELECT 
   p1.tablename,
   p1.cmd,
@@ -90,9 +94,8 @@ WHERE p1.tablename IN ('students', 'applications', 'job_drives')
 ORDER BY p1.tablename, p1.cmd;
 
 -- ============================================================
--- STEP 7: Verify Student Record Exists (READ-ONLY)
+-- STEP 7: Verify Student Record Exists
 -- ============================================================
--- This shows what the current session sees (admin context)
 SELECT 
   id,
   user_id,
@@ -100,12 +103,15 @@ SELECT
   roll_number,
   branch,
   cgpa,
-  'This is what admin sees - student should see their own record' as context
-FROM students
+  CASE 
+    WHEN user_id = '7a47cee4-41b2-48f1-88a0-c2658c05df1f' THEN '✓ MATCHES expected user_id'
+    ELSE '✗ DOES NOT MATCH expected user_id'
+  END as user_id_check
+FROM public.students
 WHERE user_id = '7a47cee4-41b2-48f1-88a0-c2658c05df1f';
 
 -- ============================================================
--- STEP 8: Check Active Job Drives (READ-ONLY)
+-- STEP 8: Check Active Job Drives
 -- ============================================================
 SELECT 
   id,
@@ -115,12 +121,12 @@ SELECT
   deadline,
   eligibility_cgpa,
   eligible_branches
-FROM job_drives
+FROM public.job_drives
 WHERE status = 'ACTIVE'
 LIMIT 5;
 
 -- ============================================================
--- STEP 9: Check Existing Applications (READ-ONLY)
+-- STEP 9: Check Existing Applications for This Student
 -- ============================================================
 SELECT 
   a.id,
@@ -132,14 +138,14 @@ SELECT
   s.user_id as student_user_id,
   jd.company_name,
   jd.job_role
-FROM applications a
-LEFT JOIN students s ON s.id = a.student_id
-LEFT JOIN job_drives jd ON jd.id = a.job_drive_id
+FROM public.applications a
+LEFT JOIN public.students s ON s.id = a.student_id
+LEFT JOIN public.job_drives jd ON jd.id = a.job_drive_id
 WHERE a.student_id = '02a78927-b202-410c-bb1f-1ad0b302a726'
 ORDER BY a.applied_at DESC;
 
 -- ============================================================
--- STEP 10: Detailed Policy Analysis - Students SELECT (READ-ONLY)
+-- STEP 10: Detailed Policy Analysis - Students SELECT
 -- ============================================================
 SELECT 
   'Students SELECT policies' as category,
@@ -150,7 +156,7 @@ FROM pg_policies
 WHERE tablename = 'students' AND cmd = 'SELECT';
 
 -- ============================================================
--- STEP 11: Detailed Policy Analysis - Applications INSERT (READ-ONLY)
+-- STEP 11: Detailed Policy Analysis - Applications INSERT
 -- ============================================================
 SELECT 
   'Applications INSERT policies' as category,
@@ -163,20 +169,19 @@ WHERE tablename = 'applications' AND cmd = 'INSERT';
 -- ============================================================
 -- STEP 12: Check if Subquery Would Work (READ-ONLY)
 -- ============================================================
--- This tests the subquery logic WITHOUT actually inserting
 SELECT 
   'Subquery test' as test_name,
   'This is the subquery from the INSERT policy' as description,
   CASE 
     WHEN EXISTS (
-      SELECT 1 FROM students WHERE user_id = '7a47cee4-41b2-48f1-88a0-c2658c05df1f'
+      SELECT 1 FROM public.students WHERE user_id = '7a47cee4-41b2-48f1-88a0-c2658c05df1f'
     ) THEN '✓ Subquery would find student'
     ELSE '✗ Subquery would NOT find student'
   END as result,
-  (SELECT id FROM students WHERE user_id = '7a47cee4-41b2-48f1-88a0-c2658c05df1f' LIMIT 1) as student_id_found;
+  (SELECT id FROM public.students WHERE user_id = '7a47cee4-41b2-48f1-88a0-c2658c05df1f' LIMIT 1) as student_id_found;
 
 -- ============================================================
--- STEP 13: Check All Tables with RLS Enabled (READ-ONLY)
+-- STEP 13: Check All Tables with RLS Enabled
 -- ============================================================
 SELECT 
   schemaname,
@@ -190,7 +195,7 @@ AND rowsecurity = true
 ORDER BY tablename;
 
 -- ============================================================
--- STEP 14: Verify Foreign Key Constraints (READ-ONLY)
+-- STEP 14: Verify Foreign Key Constraints
 -- ============================================================
 SELECT
   tc.constraint_name,
@@ -208,7 +213,7 @@ AND tc.table_name IN ('applications', 'students')
 ORDER BY tc.table_name, tc.constraint_name;
 
 -- ============================================================
--- STEP 15: Check Unique Constraints on Applications (READ-ONLY)
+-- STEP 15: Check Unique Constraints on Applications
 -- ============================================================
 SELECT
   constraint_name,
@@ -217,3 +222,33 @@ SELECT
 FROM information_schema.table_constraints
 WHERE table_name = 'applications'
 AND constraint_type = 'UNIQUE';
+
+-- ============================================================
+-- STEP 16: Check Column Definitions for Applications Table
+-- ============================================================
+SELECT 
+  column_name,
+  data_type,
+  is_nullable,
+  column_default
+FROM information_schema.columns
+WHERE table_schema = 'public'
+AND table_name = 'applications'
+ORDER BY ordinal_position;
+
+-- ============================================================
+-- STEP 17: Check Column Definitions for Students Table
+-- ============================================================
+SELECT 
+  column_name,
+  data_type,
+  is_nullable,
+  column_default
+FROM information_schema.columns
+WHERE table_schema = 'public'
+AND table_name = 'students'
+ORDER BY ordinal_position;
+
+-- ============================================================
+-- END OF READ-ONLY DIAGNOSTIC SCRIPT
+-- ============================================================
