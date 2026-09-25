@@ -1,5 +1,6 @@
 -- READ-ONLY Diagnostic Script for Student Job Application RLS Issue
 -- This script contains ONLY SELECT statements - NO modifications to the database
+-- Uses correct column names based on verified schema
 
 -- ============================================================
 -- STEP 1: Check RLS Status on All Tables
@@ -167,18 +168,22 @@ FROM pg_policies
 WHERE tablename = 'applications' AND cmd = 'INSERT';
 
 -- ============================================================
--- STEP 12: Check if Subquery Would Work (READ-ONLY)
+-- STEP 12: Test Subquery Logic (READ-ONLY)
 -- ============================================================
+-- This tests the subquery logic that the INSERT policy uses
+-- NOTE: This runs in SQL Editor context (admin), NOT as the authenticated student
+-- It verifies the student record exists and can be found by user_id
 SELECT 
-  'Subquery test' as test_name,
-  'This is the subquery from the INSERT policy' as description,
+  'Subquery logic test' as test_name,
+  'Testing if student can be found by user_id' as description,
   CASE 
     WHEN EXISTS (
       SELECT 1 FROM public.students WHERE user_id = '7a47cee4-41b2-48f1-88a0-c2658c05df1f'
-    ) THEN '✓ Subquery would find student'
-    ELSE '✗ Subquery would NOT find student'
+    ) THEN '✓ Student record exists and can be found'
+    ELSE '✗ Student record NOT found'
   END as result,
-  (SELECT id FROM public.students WHERE user_id = '7a47cee4-41b2-48f1-88a0-c2658c05df1f' LIMIT 1) as student_id_found;
+  (SELECT id FROM public.students WHERE user_id = '7a47cee4-41b2-48f1-88a0-c2658c05df1f' LIMIT 1) as student_id_that_would_be_used,
+  'This student_id should be inserted into applications.student_id' as note;
 
 -- ============================================================
 -- STEP 13: Check All Tables with RLS Enabled
@@ -248,6 +253,19 @@ FROM information_schema.columns
 WHERE table_schema = 'public'
 AND table_name = 'students'
 ORDER BY ordinal_position;
+
+-- ============================================================
+-- STEP 18: Verify the Student ID Being Used
+-- ============================================================
+-- This confirms which student_id should be inserted
+SELECT 
+  'Verification' as test_name,
+  'The frontend should insert this student_id into applications' as description,
+  s.id as correct_student_id,
+  s.user_id as auth_user_id,
+  'applications.student_id should equal students.id (NOT auth.uid())' as important_note
+FROM public.students s
+WHERE s.user_id = '7a47cee4-41b2-48f1-88a0-c2658c05df1f';
 
 -- ============================================================
 -- END OF READ-ONLY DIAGNOSTIC SCRIPT
