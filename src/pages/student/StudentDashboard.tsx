@@ -636,22 +636,27 @@ function TestsPage() {
     const percentage = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
     const passed = percentage >= (jd?.testPassPercentage || 60);
 
-    // Await all async operations to ensure database persistence
-    await addTestResult({
-      applicationId: activeTest.id,
-      studentId: currentStudent.id,
-      jobDriveId: activeTest.jobDriveId,
-      score,
-      totalQuestions: questions.length,
-      percentage,
-      passed,
-    });
+    try {
+      // Await all async operations to ensure database persistence
+      await addTestResult({
+        applicationId: activeTest.id,
+        studentId: currentStudent.id,
+        jobDriveId: activeTest.jobDriveId,
+        score,
+        totalQuestions: questions.length,
+        percentage,
+        passed,
+      });
 
-    await updateApplicationStatus(activeTest.id, passed ? 'PASSED' : 'FAILED');
-    await addNotification(currentUser.id, passed ? 'Test Passed!' : 'Test Result', passed ? `You passed the test with ${percentage}%!` : `You scored ${percentage}%. Unfortunately, you did not pass.`, passed ? 'success' : 'error');
-    
-    setTestSubmitted(true);
-    showToast(passed ? 'Test submitted! You passed!' : 'Test submitted. Unfortunately, you did not pass.', passed ? 'success' : 'error');
+      await updateApplicationStatus(activeTest.id, passed ? 'PASSED' : 'FAILED');
+      await addNotification(currentUser.id, passed ? 'Test Passed!' : 'Test Result', passed ? `You passed the test with ${percentage}%!` : `You scored ${percentage}%. Unfortunately, you did not pass.`, passed ? 'success' : 'error');
+      
+      setTestSubmitted(true);
+      showToast(passed ? 'Test submitted! You passed!' : 'Test submitted. Unfortunately, you did not pass.', passed ? 'success' : 'error');
+    } catch (err: any) {
+      console.error('❌ Error submitting test:', err);
+      showToast('Failed to submit test. Please try again.', 'error');
+    }
   };
 
   useEffect(() => {
