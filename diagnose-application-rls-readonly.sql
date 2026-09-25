@@ -1,0 +1,219 @@
+-- READ-ONLY Diagnostic Script for Student Job Application RLS Issue
+-- This script DOES NOT modify any data - it only reads policy information
+
+-- ============================================================
+-- STEP 1: Check RLS Status on All Tables
+-- ============================================================
+SELECT 
+  schemaname,
+  tablename,
+  rowsecurity as rls_enabled
+FROM pg_tables
+WHERE schemaname = 'public'
+AND tablename IN ('students', 'applications', 'job_drives', 'profiles')
+ORDER BY tablename;
+
+-- ============================================================
+-- STEP 2: All Students Table Policies (READ-ONLY)
+-- ============================================================
+SELECT 
+  'students' as table_name,
+  policyname,
+  cmd as operation,
+  roles::text,
+  permissive,
+  qual as using_expression,
+  with_check
+FROM pg_policies
+WHERE tablename = 'students'
+ORDER BY cmd, policyname;
+
+-- ============================================================
+-- STEP 3: All Applications Table Policies (READ-ONLY)
+-- ============================================================
+SELECT 
+  'applications' as table_name,
+  policyname,
+  cmd as operation,
+  roles::text,
+  permissive,
+  qual as using_expression,
+  with_check
+FROM pg_policies
+WHERE tablename = 'applications'
+ORDER BY cmd, policyname;
+
+-- ============================================================
+-- STEP 4: All Job Drives Table Policies (READ-ONLY)
+-- ============================================================
+SELECT 
+  'job_drives' as table_name,
+  policyname,
+  cmd as operation,
+  roles::text,
+  permissive,
+  qual as using_expression,
+  with_check
+FROM pg_policies
+WHERE tablename = 'job_drives'
+ORDER BY cmd, policyname;
+
+-- ============================================================
+-- STEP 5: Check for Duplicate Policies (READ-ONLY)
+-- ============================================================
+SELECT 
+  tablename,
+  policyname,
+  cmd,
+  COUNT(*) as duplicate_count
+FROM pg_policies
+WHERE tablename IN ('students', 'applications', 'job_drives')
+GROUP BY tablename, policyname, cmd
+HAVING COUNT(*) > 1
+ORDER BY tablename, policyname;
+
+-- ============================================================
+-- STEP 6: Check for Conflicting Policies (READ-ONLY)
+-- ============================================================
+-- Look for multiple policies on the same table+operation
+SELECT 
+  p1.tablename,
+  p1.cmd,
+  p1.policyname as policy1,
+  p2.policyname as policy2,
+  'Multiple policies on same operation' as warning
+FROM pg_policies p1
+JOIN pg_policies p2 ON p1.tablename = p2.tablename 
+  AND p1.cmd = p2.cmd 
+  AND p1.policyname < p2.policyname
+WHERE p1.tablename IN ('students', 'applications', 'job_drives')
+ORDER BY p1.tablename, p1.cmd;
+
+-- ============================================================
+-- STEP 7: Verify Student Record Exists (READ-ONLY)
+-- ============================================================
+-- This shows what the current session sees (admin context)
+SELECT 
+  id,
+  user_id,
+  name,
+  roll_number,
+  branch,
+  cgpa,
+  'This is what admin sees - student should see their own record' as context
+FROM students
+WHERE user_id = '7a47cee4-41b2-48f1-88a0-c2658c05df1f';
+
+-- ============================================================
+-- STEP 8: Check Active Job Drives (READ-ONLY)
+-- ============================================================
+SELECT 
+  id,
+  company_name,
+  job_role,
+  status,
+  deadline,
+  eligibility_cgpa,
+  eligible_branches
+FROM job_drives
+WHERE status = 'ACTIVE'
+LIMIT 5;
+
+-- ============================================================
+-- STEP 9: Check Existing Applications (READ-ONLY)
+-- ============================================================
+SELECT 
+  a.id,
+  a.student_id,
+  a.job_drive_id,
+  a.status,
+  a.applied_at,
+  s.name as student_name,
+  s.user_id as student_user_id,
+  jd.company_name,
+  jd.job_role
+FROM applications a
+LEFT JOIN students s ON s.id = a.student_id
+LEFT JOIN job_drives jd ON jd.id = a.job_drive_id
+WHERE a.student_id = '02a78927-b202-410c-bb1f-1ad0b302a726'
+ORDER BY a.applied_at DESC;
+
+-- ============================================================
+-- STEP 10: Detailed Policy Analysis - Students SELECT (READ-ONLY)
+-- ============================================================
+SELECT 
+  'Students SELECT policies' as category,
+  policyname,
+  qual as using_expression,
+  'This controls what students can SELECT from students table' as purpose
+FROM pg_policies
+WHERE tablename = 'students' AND cmd = 'SELECT';
+
+-- ============================================================
+-- STEP 11: Detailed Policy Analysis - Applications INSERT (READ-ONLY)
+-- ============================================================
+SELECT 
+  'Applications INSERT policies' as category,
+  policyname,
+  with_check,
+  'This controls what students can INSERT into applications table' as purpose
+FROM pg_policies
+WHERE tablename = 'applications' AND cmd = 'INSERT';
+
+-- ============================================================
+-- STEP 12: Check if Subquery Would Work (READ-ONLY)
+-- ============================================================
+-- This tests the subquery logic WITHOUT actually inserting
+SELECT 
+  'Subquery test' as test_name,
+  'This is the subquery from the INSERT policy' as description,
+  CASE 
+    WHEN EXISTS (
+      SELECT 1 FROM students WHERE user_id = '7a47cee4-41b2-48f1-88a0-c2658c05df1f'
+    ) THEN '✓ Subquery would find student'
+    ELSE '✗ Subquery would NOT find student'
+  END as result,
+  (SELECT id FROM students WHERE user_id = '7a47cee4-41b2-48f1-88a0-c2658c05df1f' LIMIT 1) as student_id_found;
+
+-- ============================================================
+-- STEP 13: Check All Tables with RLS Enabled (READ-ONLY)
+-- ============================================================
+SELECT 
+  schemaname,
+  tablename,
+  tableowner,
+  rowsecurity as rls_enabled,
+  forcerowsecurity as force_rls
+FROM pg_tables
+WHERE schemaname = 'public'
+AND rowsecurity = true
+ORDER BY tablename;
+
+-- ============================================================
+-- STEP 14: Verify Foreign Key Constraints (READ-ONLY)
+-- ============================================================
+SELECT
+  tc.constraint_name,
+  tc.table_name,
+  kcu.column_name,
+  ccu.table_name AS foreign_table_name,
+  ccu.column_name AS foreign_column_name
+FROM information_schema.table_constraints AS tc
+JOIN information_schema.key_column_usage AS kcu
+  ON tc.constraint_name = kcu.constraint_name
+JOIN information_schema.constraint_column_usage AS ccu
+  ON ccu.constraint_name = tc.constraint_name
+WHERE tc.constraint_type = 'FOREIGN KEY'
+AND tc.table_name IN ('applications', 'students')
+ORDER BY tc.table_name, tc.constraint_name;
+
+-- ============================================================
+-- STEP 15: Check Unique Constraints on Applications (READ-ONLY)
+-- ============================================================
+SELECT
+  constraint_name,
+  table_name,
+  constraint_type
+FROM information_schema.table_constraints
+WHERE table_name = 'applications'
+AND constraint_type = 'UNIQUE';
