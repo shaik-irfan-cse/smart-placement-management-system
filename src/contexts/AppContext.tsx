@@ -862,12 +862,35 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const updateApplicationStatus = async (id: string, status: Application['status']) => {
-    // Optimistic update
+    console.log('🔄 Updating application status:', { id, status });
+    
+    // Update database first
+    const { data, error } = await supabase
+      .from('applications')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) {
+      console.error('❌ Failed to update application status in database:', error);
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+      throw error;
+    }
+    
+    console.log('✅ Application status updated in database:', data);
+    
+    // Only update React state after successful database update
     setState(prev => ({
       ...prev,
       applications: prev.applications.map(a => a.id === id ? { ...a, status, updatedAt: new Date().toISOString() } : a),
     }));
-    await supabase.from('applications').update({ status }).eq('id', id);
+    
     await refreshData();
   };
 
