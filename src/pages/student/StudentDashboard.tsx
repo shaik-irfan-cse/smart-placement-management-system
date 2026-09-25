@@ -229,7 +229,7 @@ function DashboardHome() {
 }
 
 function JobDrivesPage() {
-  const { currentStudent, jobDrives, applications, addApplication, addNotification, currentUser, loading } = useApp();
+  const { currentStudent, jobDrives, applications, addApplication, addNotification, currentUser, testQuestions, loading } = useApp();
   const [search, setSearch] = useState('');
   const [filterBranch, setFilterBranch] = useState('');
   const [selectedDrive, setSelectedDrive] = useState<JobDrive | null>(null);
@@ -302,11 +302,35 @@ function JobDrivesPage() {
       companyName: selectedDrive.companyName
     });
 
+    // Determine initial application status based on test configuration
+    const hasTestConfig = selectedDrive.testDuration > 0 && selectedDrive.testPassPercentage > 0;
+    const hasQuestions = testQuestions.length > 0;
+    const initialStatus = (hasTestConfig && hasQuestions) ? 'TEST_PENDING' : 'APPLIED';
+
+    console.log('📋 Application status determination:', {
+      hasTestConfig,
+      testDuration: selectedDrive.testDuration,
+      testPassPercentage: selectedDrive.testPassPercentage,
+      hasQuestions,
+      questionCount: testQuestions.length,
+      initialStatus
+    });
+
     try {
-      const app = await addApplication({ studentId: currentStudent.id, jobDriveId: selectedDrive.id, status: 'APPLIED' });
+      const app = await addApplication({ studentId: currentStudent.id, jobDriveId: selectedDrive.id, status: initialStatus });
       if (app) {
-        await addNotification(currentUser.id, 'Application Submitted', `Your application for ${selectedDrive.jobRole} at ${selectedDrive.companyName} has been submitted.`, 'success');
-        showToast('Application submitted successfully!', 'success');
+        const message = initialStatus === 'TEST_PENDING'
+          ? `Your application for ${selectedDrive.jobRole} at ${selectedDrive.companyName} has been submitted. Please complete the technical test.`
+          : `Your application for ${selectedDrive.jobRole} at ${selectedDrive.companyName} has been submitted.`;
+        
+        await addNotification(currentUser.id, 'Application Submitted', message, 'success');
+        
+        if (initialStatus === 'TEST_PENDING') {
+          showToast('Application submitted! Please take the technical test.', 'success');
+        } else {
+          showToast('Application submitted successfully!', 'success');
+        }
+        
         setShowApplyModal(false);
         setSelectedDrive(null);
         setEligibilityResult(null);
