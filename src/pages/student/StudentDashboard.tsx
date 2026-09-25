@@ -626,7 +626,7 @@ function TestsPage() {
     setTimeLeft((jd?.testDuration || 30) * 60);
   };
 
-  const submitTest = () => {
+  const submitTest = async () => {
     if (!activeTest || !currentUser || questions.length === 0) return;
     let score = 0;
     questions.forEach((q: any) => {
@@ -636,7 +636,8 @@ function TestsPage() {
     const percentage = questions.length > 0 ? Math.round((score / questions.length) * 100) : 0;
     const passed = percentage >= (jd?.testPassPercentage || 60);
 
-    addTestResult({
+    // Await all async operations to ensure database persistence
+    await addTestResult({
       applicationId: activeTest.id,
       studentId: currentStudent.id,
       jobDriveId: activeTest.jobDriveId,
@@ -646,8 +647,9 @@ function TestsPage() {
       passed,
     });
 
-    updateApplicationStatus(activeTest.id, passed ? 'PASSED' : 'FAILED');
-    addNotification(currentUser.id, passed ? 'Test Passed!' : 'Test Result', passed ? `You passed the test with ${percentage}%!` : `You scored ${percentage}%. Unfortunately, you did not pass.`, passed ? 'success' : 'error');
+    await updateApplicationStatus(activeTest.id, passed ? 'PASSED' : 'FAILED');
+    await addNotification(currentUser.id, passed ? 'Test Passed!' : 'Test Result', passed ? `You passed the test with ${percentage}%!` : `You scored ${percentage}%. Unfortunately, you did not pass.`, passed ? 'success' : 'error');
+    
     setTestSubmitted(true);
     showToast(passed ? 'Test submitted! You passed!' : 'Test submitted. Unfortunately, you did not pass.', passed ? 'success' : 'error');
   };
@@ -658,7 +660,10 @@ function TestsPage() {
       return () => clearInterval(timer);
     }
     if (activeTest && timeLeft === 0 && !testSubmitted) {
-      submitTest();
+      submitTest().catch(err => {
+        console.error('❌ Auto-submit test failed:', err);
+        showToast('Failed to submit test. Please try again.', 'error');
+      });
     }
   }, [activeTest, timeLeft, testSubmitted]);
 
@@ -711,7 +716,7 @@ function TestsPage() {
               Previous
             </button>
             {currentQ === questions.length - 1 ? (
-              <button onClick={submitTest} className="btn-primary">
+              <button onClick={async () => await submitTest()} className="btn-primary">
                 Submit Test
               </button>
             ) : (
