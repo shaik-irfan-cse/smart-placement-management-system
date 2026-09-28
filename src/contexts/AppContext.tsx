@@ -895,7 +895,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
   };
 
   const addTestResult = async (result: Omit<TestResult, 'id' | 'submittedAt'>) => {
-    const { error } = await supabase.from('test_results').insert({
+    console.log('📝 Adding test result:', result);
+    
+    const { data, error } = await supabase.from('test_results').insert({
       application_id: result.applicationId,
       student_id: result.studentId,
       job_drive_id: result.jobDriveId,
@@ -903,8 +905,21 @@ export function AppProvider({ children }: { children: ReactNode }) {
       total_questions: result.totalQuestions,
       percentage: result.percentage,
       passed: result.passed,
-    });
-    if (!error) await refreshData();
+    }).select().single();
+    
+    if (error) {
+      console.error('❌ Failed to add test result:', error);
+      console.error('Error details:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+      throw error;
+    }
+    
+    console.log('✅ Test result added successfully:', data);
+    await refreshData();
   };
 
   const addJobDrive = async (drive: Omit<JobDrive, 'id' | 'createdAt'>) => {
