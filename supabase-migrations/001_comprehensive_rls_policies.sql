@@ -136,13 +136,23 @@ CREATE POLICY "Admins can update recruiters" ON recruiters
 -- JOB DRIVES TABLE POLICIES
 -- ============================================================
 DROP POLICY IF EXISTS "Anyone can view job drives" ON job_drives;
+DROP POLICY IF EXISTS "Students can view active job drives" ON job_drives;
 DROP POLICY IF EXISTS "Recruiters can manage own job drives" ON job_drives;
 DROP POLICY IF EXISTS "Admins can manage all job drives" ON job_drives;
 
-CREATE POLICY "Anyone can view job drives" ON job_drives
+-- Students can view active job drives (for applying)
+CREATE POLICY "Students can view active job drives" ON job_drives
   FOR SELECT TO authenticated
-  USING (true);
+  USING (
+    status = 'ACTIVE'
+    AND EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE profiles.id = auth.uid() 
+      AND profiles.role = 'student'
+    )
+  );
 
+-- Recruiters can manage their own job drives
 CREATE POLICY "Recruiters can manage own job drives" ON job_drives
   FOR ALL TO authenticated
   USING (
@@ -151,6 +161,7 @@ CREATE POLICY "Recruiters can manage own job drives" ON job_drives
     )
   );
 
+-- Admins can manage all job drives
 CREATE POLICY "Admins can manage all job drives" ON job_drives
   FOR ALL TO authenticated
   USING (
@@ -308,6 +319,7 @@ DROP POLICY IF EXISTS "Recruiters can view placements for their drives" ON place
 DROP POLICY IF EXISTS "Admins can manage all placements" ON placements;
 DROP POLICY IF EXISTS "Authenticated users can insert placements" ON placements;
 
+-- Students can view their own placements
 CREATE POLICY "Students can view own placements" ON placements
   FOR SELECT TO authenticated
   USING (
@@ -316,6 +328,7 @@ CREATE POLICY "Students can view own placements" ON placements
     )
   );
 
+-- Recruiters can view placements for their job drives
 CREATE POLICY "Recruiters can view placements for their drives" ON placements
   FOR SELECT TO authenticated
   USING (
@@ -327,6 +340,7 @@ CREATE POLICY "Recruiters can view placements for their drives" ON placements
     )
   );
 
+-- Admins can manage all placements (including insert)
 CREATE POLICY "Admins can manage all placements" ON placements
   FOR ALL TO authenticated
   USING (
@@ -336,7 +350,3 @@ CREATE POLICY "Admins can manage all placements" ON placements
       AND profiles.role = 'admin'
     )
   );
-
-CREATE POLICY "Authenticated users can insert placements" ON placements
-  FOR INSERT TO authenticated
-  WITH CHECK (auth.role() = 'authenticated');
