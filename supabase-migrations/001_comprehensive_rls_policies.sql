@@ -2,6 +2,24 @@
 -- This ensures all necessary policies are in place for proper access control
 
 -- ============================================================
+-- HELPER FUNCTION: is_admin()
+-- SECURITY DEFINER function to check if current user is an admin
+-- This avoids RLS recursion when checking admin status
+-- ============================================================
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN
+LANGUAGE sql
+SECURITY DEFINER
+STABLE
+AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM public.profiles
+    WHERE id = auth.uid()
+    AND role = 'admin'
+  );
+$$;
+
+-- ============================================================
 -- PROFILES TABLE POLICIES
 -- ============================================================
 DROP POLICY IF EXISTS "Users can view own profile" ON profiles;
@@ -23,13 +41,7 @@ CREATE POLICY "Users can update own profile" ON profiles
 
 CREATE POLICY "Admins can view all profiles" ON profiles
   FOR SELECT TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles p
-      WHERE p.id = auth.uid() 
-      AND p.role = 'admin'
-    )
-  );
+  USING (public.is_admin());
 
 -- ============================================================
 -- STUDENTS TABLE POLICIES
@@ -53,13 +65,7 @@ CREATE POLICY "Students can update own record" ON students
 
 CREATE POLICY "Admins can view all students" ON students
   FOR SELECT TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE profiles.id = auth.uid() 
-      AND profiles.role = 'admin'
-    )
-  );
+  USING (public.is_admin());
 
 -- ============================================================
 -- ADMINS TABLE POLICIES
@@ -83,13 +89,7 @@ CREATE POLICY "Admins can update own record" ON admins
 
 CREATE POLICY "Admins can view all admins" ON admins
   FOR SELECT TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE profiles.id = auth.uid() 
-      AND profiles.role = 'admin'
-    )
-  );
+  USING (public.is_admin());
 
 -- ============================================================
 -- RECRUITERS TABLE POLICIES
@@ -114,23 +114,11 @@ CREATE POLICY "Recruiters can update own record" ON recruiters
 
 CREATE POLICY "Admins can view all recruiters" ON recruiters
   FOR SELECT TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE profiles.id = auth.uid() 
-      AND profiles.role = 'admin'
-    )
-  );
+  USING (public.is_admin());
 
 CREATE POLICY "Admins can update recruiters" ON recruiters
   FOR UPDATE TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE profiles.id = auth.uid() 
-      AND profiles.role = 'admin'
-    )
-  );
+  USING (public.is_admin());
 
 -- ============================================================
 -- JOB DRIVES TABLE POLICIES
@@ -164,13 +152,7 @@ CREATE POLICY "Recruiters can manage own job drives" ON job_drives
 -- Admins can manage all job drives
 CREATE POLICY "Admins can manage all job drives" ON job_drives
   FOR ALL TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE profiles.id = auth.uid() 
-      AND profiles.role = 'admin'
-    )
-  );
+  USING (public.is_admin());
 
 -- ============================================================
 -- APPLICATIONS TABLE POLICIES
@@ -230,13 +212,7 @@ CREATE POLICY "Recruiters can update applications for their drives" ON applicati
 
 CREATE POLICY "Admins can manage all applications" ON applications
   FOR ALL TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE profiles.id = auth.uid() 
-      AND profiles.role = 'admin'
-    )
-  );
+  USING (public.is_admin());
 
 -- ============================================================
 -- TEST QUESTIONS TABLE POLICIES
@@ -284,13 +260,7 @@ CREATE POLICY "Recruiters can view test results for their drives" ON test_result
 
 CREATE POLICY "Admins can manage all test results" ON test_results
   FOR ALL TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE profiles.id = auth.uid() 
-      AND profiles.role = 'admin'
-    )
-  );
+  USING (public.is_admin());
 
 -- ============================================================
 -- NOTIFICATIONS TABLE POLICIES
@@ -343,10 +313,4 @@ CREATE POLICY "Recruiters can view placements for their drives" ON placements
 -- Admins can manage all placements (including insert)
 CREATE POLICY "Admins can manage all placements" ON placements
   FOR ALL TO authenticated
-  USING (
-    EXISTS (
-      SELECT 1 FROM profiles 
-      WHERE profiles.id = auth.uid() 
-      AND profiles.role = 'admin'
-    )
-  );
+  USING (public.is_admin());
