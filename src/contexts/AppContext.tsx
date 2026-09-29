@@ -864,6 +864,18 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const updateApplicationStatus = async (id: string, status: Application['status']) => {
     console.log('🔄 Updating application status:', { id, status });
     
+    // Get the application details before updating
+    const { data: application, error: appError } = await supabase
+      .from('applications')
+      .select('student_id, job_drive_id')
+      .eq('id', id)
+      .single();
+    
+    if (appError) {
+      console.error('❌ Failed to fetch application:', appError);
+      throw appError;
+    }
+    
     // Update database first
     const { data, error } = await supabase
       .from('applications')
@@ -884,6 +896,69 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
     
     console.log('✅ Application status updated in database:', data);
+    
+    // If status is SELECTED, create a placement record
+    if (status === 'SELECTED' && application) {
+      console.log('🎉 Application selected - creating placement record');
+      
+      // Get job drive details
+      const { data: jobDrive, error: jdError } = await supabase
+        .from('job_drives')
+        .select('company_name, job_role, package')
+        .eq('id', application.job_drive_id)
+        .single();
+      
+      if (jdError) {
+        console.error('❌ Failed to fetch job drive details:', jdError);
+      } else if (jobDrive) {
+        // Check if placement already exists (prevent duplicates)
+        const { data: existingPlacement } = await supabase
+          .from('placements')
+          .select('id')
+          .eq('student_id', application.student_id)
+          .eq('job_drive_id', application.job_drive_id)
+          .single();
+        
+        if (existingPlacement) {
+          console.log('⚠️ Placement already exists for this student and job drive');
+        } else {
+          // Create placement record
+          const { error: placementError } = await supabase.from('placements').insert({
+            student_id: application.student_id,
+            job_drive_id: application.job_drive_id,
+            company_name: jobDrive.company_name,
+            job_role: jobDrive.job_role,
+            package: jobDrive.package,
+            selection_date: new Date().toISOString().split('T')[0],
+            status: 'PLACED',
+          });
+          
+          if (placementError) {
+            console.error('❌ Failed to create placement record:', placementError);
+            console.error('Placement error details:', {
+              message: placementError.message,
+              details: placementError.details,
+              hint: placementError.hint,
+              code: placementError.code
+            });
+          } else {
+            console.log('✅ Placement record created successfully');
+            
+            // Update student placement status
+            const { error: studentError } = await supabase
+              .from('students')
+              .update({ placement_status: 'PLACED' })
+              .eq('id', application.student_id);
+            
+            if (studentError) {
+              console.error('❌ Failed to update student placement status:', studentError);
+            } else {
+              console.log('✅ Student placement status updated to PLACED');
+            }
+          }
+        }
+      }
+    }
     
     // Only update React state after successful database update
     setState(prev => ({
