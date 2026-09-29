@@ -262,6 +262,101 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  // Backfill missing placements for SELECTED applications
+  useEffect(() => {
+    const backfillPlacements = async () => {
+      // Only run once after initial data load
+      if (loading || authLoading) return;
+      
+      // Find all SELECTED applications
+      const selectedApplications = state.applications.filter(app => app.status === 'SELECTED');
+      
+      if (selectedApplications.length === 0) {
+        console.log('📋 No SELECTED applications found - skipping placement backfill');
+        return;
+      }
+      
+      console.log(`🔍 Checking ${selectedApplications.length} SELECTED application(s) for missing placements...`);
+      
+      for (const app of selectedApplications) {
+        try {
+          // Check if placement already exists
+          const { data: existingPlacement, error: checkError } = await supabase
+            .from('placements')
+            .select('id')
+            .eq('student_id', app.studentId)
+            .eq('job_drive_id', app.jobDriveId)
+            .maybeSingle();
+          
+          if (checkError) {
+            console.error(`❌ Error checking placement for application ${app.id}:`, checkError);
+            continue;
+          }
+          
+          if (existingPlacement) {
+            console.log(`✅ Placement already exists for application ${app.id}`);
+            continue;
+          }
+          
+          // Get job drive details
+          const { data: jobDrive, error: jdError } = await supabase
+            .from('job_drives')
+            .select('company_name, job_role, package')
+            .eq('id', app.jobDriveId)
+            .single();
+          
+          if (jdError || !jobDrive) {
+            console.error(`❌ Failed to fetch job drive details for application ${app.id}:`, jdError);
+            continue;
+          }
+          
+          // Create placement record
+          const { error: placementError } = await supabase.from('placements').insert({
+            student_id: app.studentId,
+            job_drive_id: app.jobDriveId,
+            company_name: jobDrive.company_name,
+            job_role: jobDrive.job_role,
+            package: jobDrive.package,
+            selection_date: app.updatedAt ? new Date(app.updatedAt).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+            status: 'PLACED',
+          });
+          
+          if (placementError) {
+            console.error(`❌ Failed to create placement for application ${app.id}:`, placementError);
+            console.error('Placement error details:', {
+              message: placementError.message,
+              details: placementError.details,
+              hint: placementError.hint,
+              code: placementError.code
+            });
+          } else {
+            console.log(`✅ Placement created for application ${app.id}`);
+            
+            // Update student placement status
+            const { error: studentError } = await supabase
+              .from('students')
+              .update({ placement_status: 'PLACED' })
+              .eq('id', app.studentId);
+            
+            if (studentError) {
+              console.error(`❌ Failed to update student placement status for application ${app.id}:`, studentError);
+            } else {
+              console.log(`✅ Student placement status updated for application ${app.id}`);
+            }
+          }
+        } catch (err) {
+          console.error(`❌ Unexpected error processing application ${app.id}:`, err);
+        }
+      }
+      
+      // Refresh data to show new placements
+      await refreshData();
+      console.log('✅ Placement backfill complete');
+    };
+    
+    backfillPlacements();
+  }, [loading, authLoading, state.applications]);
+
   const loadUserProfile = async (userId: string, email: string) => {
     try {
       const { data: profile, error: profileError } = await supabase
