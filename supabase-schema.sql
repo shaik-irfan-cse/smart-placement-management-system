@@ -231,11 +231,18 @@ CREATE POLICY "Admins can update recruiters" ON recruiters
     EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
   );
 
--- Job Drives: Everyone can view active drives, recruiters manage own, admins manage all
-CREATE POLICY "Anyone can view job drives" ON job_drives
+-- Job Drives: Students view active drives, recruiters manage own, admins manage all
+CREATE POLICY "Students can view active job drives" ON job_drives
   FOR SELECT
   TO authenticated
-  USING (true);
+  USING (
+    status = 'ACTIVE'
+    AND EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE profiles.id = auth.uid() 
+      AND profiles.role = 'student'
+    )
+  );
 CREATE POLICY "Recruiters can manage own job drives" ON job_drives
   FOR ALL
   TO authenticated
@@ -345,14 +352,33 @@ CREATE POLICY "Users can update own notifications" ON notifications
 CREATE POLICY "Anyone can insert notifications" ON notifications
   FOR INSERT WITH CHECK (true);
 
--- Placements: Students view own, admins view all
+-- Placements: Students view own, recruiters view for their drives, admins manage all
 CREATE POLICY "Students can view own placements" ON placements
-  FOR SELECT USING (student_id IN (SELECT id FROM students WHERE user_id = auth.uid()));
-CREATE POLICY "Recruiters can view placements for their drives" ON placements
-  FOR SELECT USING (job_drive_id IN (SELECT id FROM job_drives WHERE recruiter_id IN (SELECT id FROM recruiters WHERE user_id = auth.uid())));
-CREATE POLICY "Admins can manage all placements" ON placements
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role = 'admin')
+  FOR SELECT
+  TO authenticated
+  USING (
+    student_id IN (
+      SELECT id FROM students WHERE user_id = auth.uid()
+    )
   );
-CREATE POLICY "Authenticated users can insert placements" ON placements
-  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+CREATE POLICY "Recruiters can view placements for their drives" ON placements
+  FOR SELECT
+  TO authenticated
+  USING (
+    job_drive_id IN (
+      SELECT id FROM job_drives 
+      WHERE recruiter_id IN (
+        SELECT id FROM recruiters WHERE user_id = auth.uid()
+      )
+    )
+  );
+CREATE POLICY "Admins can manage all placements" ON placements
+  FOR ALL
+  TO authenticated
+  USING (
+    EXISTS (
+      SELECT 1 FROM profiles 
+      WHERE profiles.id = auth.uid() 
+      AND profiles.role = 'admin'
+    )
+  );
