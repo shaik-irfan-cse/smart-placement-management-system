@@ -96,6 +96,12 @@ export default function AdminDashboard() {
     );
   }
 
+  // Guard: If currentAdmin is null (during logout/redirect), don't render anything
+  // This prevents DashboardLayout from rendering during the transition
+  if (!currentAdmin) {
+    return null;
+  }
+
   // Build nav items dynamically based on head admin status
   const navItems = [
     { label: 'Dashboard', path: '/admin/dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
