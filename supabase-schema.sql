@@ -42,6 +42,8 @@ CREATE TABLE IF NOT EXISTS admins (
   employee_id TEXT,
   phone TEXT,
   department TEXT,
+  is_head_admin BOOLEAN NOT NULL DEFAULT false,
+  approval_status TEXT DEFAULT 'APPROVED' CHECK (approval_status IN ('PENDING', 'APPROVED', 'REJECTED')),
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 

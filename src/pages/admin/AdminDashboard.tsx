@@ -1,26 +1,28 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Building2, Briefcase, FileText, Award, BarChart3, Bell, User, CheckCircle, XCircle, Eye, Search } from 'lucide-react';
+import { LayoutDashboard, Users, Building2, Briefcase, FileText, Award, BarChart3, Bell, User, CheckCircle, XCircle, Eye, Search, Shield } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { useApp } from '../../contexts/AppContext';
 import { StatsCard, StatusBadge, Modal, ConfirmDialog, showToast, EmptyState, SearchInput } from '../../components/UI';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
-const navItems = [
-  { label: 'Dashboard', path: '/admin/dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
-  { label: 'Students', path: '/admin/students', icon: <Users className="w-4 h-4" /> },
-  { label: 'Companies', path: '/admin/companies', icon: <Building2 className="w-4 h-4" /> },
-  { label: 'Job Drives', path: '/admin/drives', icon: <Briefcase className="w-4 h-4" /> },
-  { label: 'Applications', path: '/admin/applications', icon: <FileText className="w-4 h-4" /> },
-  { label: 'Placements', path: '/admin/placements', icon: <Award className="w-4 h-4" /> },
-  { label: 'Reports', path: '/admin/reports', icon: <BarChart3 className="w-4 h-4" /> },
-  { label: 'Notifications', path: '/admin/notifications', icon: <Bell className="w-4 h-4" /> },
-];
-
 export default function AdminDashboard() {
-  const { currentAdmin } = useApp();
+  const { currentAdmin, isHeadAdmin } = useApp();
   const location = useLocation();
   const path = location.pathname;
+
+  // Build nav items dynamically based on head admin status
+  const navItems = [
+    { label: 'Dashboard', path: '/admin/dashboard', icon: <LayoutDashboard className="w-4 h-4" /> },
+    { label: 'Students', path: '/admin/students', icon: <Users className="w-4 h-4" /> },
+    { label: 'Companies', path: '/admin/companies', icon: <Building2 className="w-4 h-4" /> },
+    { label: 'Job Drives', path: '/admin/drives', icon: <Briefcase className="w-4 h-4" /> },
+    { label: 'Applications', path: '/admin/applications', icon: <FileText className="w-4 h-4" /> },
+    { label: 'Placements', path: '/admin/placements', icon: <Award className="w-4 h-4" /> },
+    { label: 'Reports', path: '/admin/reports', icon: <BarChart3 className="w-4 h-4" /> },
+    { label: 'Notifications', path: '/admin/notifications', icon: <Bell className="w-4 h-4" /> },
+    ...(isHeadAdmin() ? [{ label: 'Admin Requests', path: '/admin/requests', icon: <Shield className="w-4 h-4" /> }] : []),
+  ];
 
   const renderPage = () => {
     if (path.startsWith('/admin/students')) return <StudentsPage />;
@@ -30,6 +32,7 @@ export default function AdminDashboard() {
     if (path.startsWith('/admin/placements')) return <PlacementsPage />;
     if (path.startsWith('/admin/reports')) return <ReportsPage />;
     if (path.startsWith('/admin/notifications')) return <NotificationsPage />;
+    if (path.startsWith('/admin/requests')) return <AdminRequestsPage />;
     return <DashboardHome />;
   };
 
@@ -585,6 +588,157 @@ function NotificationsPage() {
         ))}
         {myNotifs.length === 0 && <EmptyState icon={<Bell className="w-12 h-12" />} title="No Notifications" description="You're all caught up!" />}
       </div>
+    </div>
+  );
+}
+
+function AdminRequestsPage() {
+  const { admins, updateAdminApproval, isHeadAdmin } = useApp();
+  const [confirmAction, setConfirmAction] = useState<{ id: string; action: 'APPROVED' | 'REJECTED'; name: string } | null>(null);
+
+  // Only head admins can access this page
+  if (!isHeadAdmin()) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="text-center">
+          <Shield className="w-16 h-16 text-red-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-gray-900 mb-2">Access Denied</h2>
+          <p className="text-gray-600">Only head admins can manage admin approval requests.</p>
+        </div>
+      </div>
+    );
+  }
+
+  const pendingAdmins = admins.filter(a => a.approvalStatus === 'PENDING');
+  const approvedAdmins = admins.filter(a => a.approvalStatus === 'APPROVED');
+  const rejectedAdmins = admins.filter(a => a.approvalStatus === 'REJECTED');
+
+  const handleApprove = async (id: string, status: 'APPROVED' | 'REJECTED') => {
+    try {
+      await updateAdminApproval(id, status);
+      showToast(`Admin ${status === 'APPROVED' ? 'approved' : 'rejected'} successfully!`, status === 'APPROVED' ? 'success' : 'info');
+    } catch (error: any) {
+      console.error('Failed to update admin approval:', error);
+      showToast(`Failed to ${status === 'APPROVED' ? 'approve' : 'reject'} admin: ${error.message}`, 'error');
+    }
+  };
+
+  return (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Admin Requests</h1>
+        <p className="text-gray-500 mt-1">Manage admin registration requests</p>
+      </div>
+
+      {/* Pending Requests */}
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          Pending Requests ({pendingAdmins.length})
+        </h2>
+        {pendingAdmins.length === 0 ? (
+          <EmptyState 
+            icon={<Shield className="w-12 h-12" />} 
+            title="No Pending Requests" 
+            description="There are no pending admin registration requests at the moment." 
+          />
+        ) : (
+          <div className="space-y-4">
+            {pendingAdmins.map(admin => (
+              <div key={admin.id} className="card">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-semibold text-gray-900">{admin.name}</h3>
+                      <StatusBadge status="PENDING" />
+                    </div>
+                    <p className="text-sm text-gray-500">Employee ID: {admin.employeeId}</p>
+                    <p className="text-sm text-gray-500">Department: {admin.department}</p>
+                    <p className="text-sm text-gray-500">Phone: {admin.phone}</p>
+                  </div>
+                  <div className="flex gap-2">
+                    <button 
+                      onClick={() => setConfirmAction({ id: admin.id, action: 'APPROVED', name: admin.name })}
+                      className="btn-success text-sm flex items-center gap-1"
+                    >
+                      <CheckCircle className="w-4 h-4" /> Approve
+                    </button>
+                    <button 
+                      onClick={() => setConfirmAction({ id: admin.id, action: 'REJECTED', name: admin.name })}
+                      className="btn-danger text-sm flex items-center gap-1"
+                    >
+                      <XCircle className="w-4 h-4" /> Reject
+                    </button>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Approved Admins */}
+      <div className="mb-8">
+        <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          Approved Admins ({approvedAdmins.length})
+        </h2>
+        {approvedAdmins.length === 0 ? (
+          <p className="text-sm text-gray-500">No approved admins yet.</p>
+        ) : (
+          <div className="space-y-3">
+            {approvedAdmins.map(admin => (
+              <div key={admin.id} className="card">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-gray-900">{admin.name}</h3>
+                      <StatusBadge status="APPROVED" />
+                      {admin.isHeadAdmin && (
+                        <span className="badge bg-purple-100 text-purple-700">Head Admin</span>
+                      )}
+                    </div>
+                    <p className="text-sm text-gray-500">{admin.employeeId} • {admin.department}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Rejected Admins */}
+      {rejectedAdmins.length > 0 && (
+        <div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            Rejected Requests ({rejectedAdmins.length})
+          </h2>
+          <div className="space-y-3">
+            {rejectedAdmins.map(admin => (
+              <div key={admin.id} className="card opacity-60">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold text-gray-900">{admin.name}</h3>
+                      <StatusBadge status="REJECTED" />
+                    </div>
+                    <p className="text-sm text-gray-500">{admin.employeeId} • {admin.department}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Confirmation Dialog */}
+      <ConfirmDialog
+        isOpen={!!confirmAction}
+        onClose={() => setConfirmAction(null)}
+        onConfirm={() => confirmAction && handleApprove(confirmAction.id, confirmAction.action)}
+        title={confirmAction?.action === 'APPROVED' ? 'Approve Admin' : 'Reject Admin'}
+        message={`Are you sure you want to ${confirmAction?.action === 'APPROVED' ? 'approve' : 'reject'} ${confirmAction?.name}'s admin registration request?`}
+        confirmText={confirmAction?.action === 'APPROVED' ? 'Approve' : 'Reject'}
+        variant={confirmAction?.action === 'APPROVED' ? 'primary' : 'danger'}
+      />
     </div>
   );
 }

@@ -37,6 +37,8 @@ interface AppContextType extends AppState {
   addPlacement: (placement: Omit<Placement, 'id'>) => Promise<void>;
   getUnreadCount: (userId: string) => number;
   refreshData: () => Promise<void>;
+  updateAdminApproval: (id: string, status: Admin['approvalStatus']) => Promise<void>;
+  isHeadAdmin: () => boolean;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -67,6 +69,8 @@ function mapAdmin(row: any): Admin {
     employeeId: row.employee_id,
     phone: row.phone,
     department: row.department,
+    isHeadAdmin: row.is_head_admin || false,
+    approvalStatus: row.approval_status || 'APPROVED',
   };
 }
 
@@ -438,6 +442,47 @@ export function AppProvider({ children }: { children: ReactNode }) {
         return { success: false, message: `This account is not registered as a ${role}. Please use the correct login portal.` };
       }
 
+      // Step 4.5: For admin role, check approval status
+      if (role === 'admin') {
+        const { data: adminRecord, error: adminError } = await supabase
+          .from('admins')
+          .select('approval_status, is_head_admin')
+          .eq('user_id', data.user.id)
+          .maybeSingle();
+
+        if (adminError) {
+          console.error('Admin record query error:', adminError);
+          return { success: false, message: 'Failed to verify admin status.' };
+        }
+
+        if (!adminRecord) {
+          console.error('Admin record not found for user ID:', data.user.id);
+          return { success: false, message: 'Admin record not found. Please contact support.' };
+        }
+
+        // Head admins always have access
+        if (adminRecord.is_head_admin) {
+          console.log('✅ Head admin login approved');
+        } else if (adminRecord.approval_status === 'PENDING') {
+          console.error('❌ Admin approval pending');
+          return { 
+            success: false, 
+            message: 'Your admin registration is pending approval from the Head Admin. Please wait for approval before accessing the admin portal.' 
+          };
+        } else if (adminRecord.approval_status === 'REJECTED') {
+          console.error('❌ Admin registration rejected');
+          return { 
+            success: false, 
+            message: 'Your admin registration has been rejected. Please contact the Head Admin for more information.' 
+          };
+        } else if (adminRecord.approval_status !== 'APPROVED') {
+          console.error('❌ Unknown admin approval status:', adminRecord.approval_status);
+          return { success: false, message: 'Invalid admin status. Please contact support.' };
+        }
+
+        console.log('✅ Admin approval status:', adminRecord.approval_status);
+      }
+
       // Step 5: Load the full user profile and student/admin/recruiter record
       await loadUserProfile(data.user.id, email);
       
@@ -768,6 +813,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
           employee_id: data.rollNumber,
           phone: data.phone,
           department: data.department || 'Training & Placement',
+          is_head_admin: false,
+          approval_status: 'PENDING',
         };
         console.log('📋 Admin data to insert:', adminInsertData);
         
@@ -794,6 +841,23 @@ export function AppProvider({ children }: { children: ReactNode }) {
         }
         
         console.log('✅ Admin record created successfully:', adminData);
+
+        // Notify head admin about new admin registration
+        const { data: headAdmins } = await supabase
+          .from('admins')
+          .select('user_id')
+          .eq('is_head_admin', true);
+
+        if (headAdmins && headAdmins.length > 0) {
+          for (const headAdmin of headAdmins) {
+            await addNotification(
+              headAdmin.user_id,
+              'New Admin Registration',
+              `${data.name} has registered as a new admin and is pending your approval.`,
+              'info'
+            );
+          }
+        }
       }
 
       // Verify all records were created
@@ -882,6 +946,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
       await refreshData();
       
       console.log('🎉🎉🎉 REGISTRATION COMPLETE AND VERIFIED 🎉🎉🎉');
+      
+      // Custom message for admin registration
+      if (role === 'admin') {
+        return { 
+          success: true, 
+          message: 'Admin registration submitted successfully! Your account is pending approval from the Head Admin. You will be notified once approved.' 
+        };
+      }
+      
       return { success: true, message: 'Registration successful! Welcome to the platform.' };
     } catch (err: any) {
       console.error('💥 UNEXPECTED ERROR during registration:', err);
@@ -1192,6 +1265,59 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await refreshData();
   };
 
+  const updateAdminApproval = async (id: string, status: Admin['approvalStatus']) => {
+    console.log('🔄 Updating admin approval:', { id, status });
+    
+    // Get the admin record to check if current user is head admin
+    if (!currentAdmin || !currentAdmin.isHeadAdmin) {
+      console.error('❌ Only head admin can approve/reject admin requests');
+      throw new Error('Unauthorized: Only head admin can approve/reject admin requests');
+    }
+
+    // Get the admin being approved/rejected
+    const { data: adminRecord, error: adminError } = await supabase
+      .from('admins')
+      .select('user_id, name')
+      .eq('id', id)
+      .single();
+
+    if (adminError) {
+      console.error('❌ Failed to fetch admin record:', adminError);
+      throw adminError;
+    }
+
+    // Update approval status
+    const { error: updateError } = await supabase
+      .from('admins')
+      .update({ approval_status: status })
+      .eq('id', id);
+
+    if (updateError) {
+      console.error('❌ Failed to update admin approval status:', updateError);
+      throw updateError;
+    }
+
+    console.log('✅ Admin approval status updated');
+
+    // Send notification to the admin
+    if (adminRecord) {
+      await addNotification(
+        adminRecord.user_id,
+        status === 'APPROVED' ? 'Admin Account Approved' : 'Admin Account Rejected',
+        status === 'APPROVED'
+          ? `Your admin account has been approved. You can now access the admin portal.`
+          : `Your admin account has been rejected. Please contact the head admin for more information.`,
+        status === 'APPROVED' ? 'success' : 'error'
+      );
+    }
+
+    await refreshData();
+  };
+
+  const isHeadAdmin = (): boolean => {
+    return currentAdmin?.isHeadAdmin === true;
+  };
+
   return (
     <AppContext.Provider value={{
       ...state,
@@ -1217,6 +1343,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
       addPlacement,
       getUnreadCount,
       refreshData,
+      updateAdminApproval,
+      isHeadAdmin,
     }}>
       {children}
     </AppContext.Provider>

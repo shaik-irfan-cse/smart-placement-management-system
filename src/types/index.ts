@@ -35,6 +35,8 @@ export interface Admin {
   employeeId: string;
   phone: string;
   department: string;
+  isHeadAdmin?: boolean;
+  approvalStatus?: ApprovalStatus;
 }
 
 export interface Recruiter {
