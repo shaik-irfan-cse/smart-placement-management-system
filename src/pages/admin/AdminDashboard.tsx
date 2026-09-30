@@ -1,15 +1,106 @@
 import React, { useState, useEffect } from 'react';
-import { useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Building2, Briefcase, FileText, Award, BarChart3, Bell, User, CheckCircle, XCircle, Eye, Search, Shield } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, Users, Building2, Briefcase, FileText, Award, BarChart3, Bell, User, CheckCircle, XCircle, Eye, Search, Shield, AlertCircle } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
 import { useApp } from '../../contexts/AppContext';
 import { StatsCard, StatusBadge, Modal, ConfirmDialog, showToast, EmptyState, SearchInput } from '../../components/UI';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 
 export default function AdminDashboard() {
-  const { currentAdmin, isHeadAdmin } = useApp();
+  const { currentAdmin, isHeadAdmin, logout } = useApp();
   const location = useLocation();
+  const navigate = useNavigate();
   const path = location.pathname;
+
+  // Check if admin is approved - block access if pending or rejected
+  useEffect(() => {
+    if (currentAdmin && !isHeadAdmin() && currentAdmin.approvalStatus !== 'APPROVED') {
+      // Admin is not approved and not a head admin - block access
+      const handleLogout = async () => {
+        await logout();
+        navigate('/login/admin');
+      };
+      handleLogout();
+    }
+  }, [currentAdmin, isHeadAdmin, navigate, logout]);
+
+  // Show blocking message for pending admins
+  if (currentAdmin && !isHeadAdmin() && currentAdmin.approvalStatus === 'PENDING') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+          <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-yellow-100 rounded-full">
+            <AlertCircle className="w-8 h-8 text-yellow-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">
+            Registration Pending Approval
+          </h2>
+          <p className="text-gray-600 text-center mb-6">
+            Your admin registration is pending approval from the Head Admin. You will be notified once your account is approved.
+          </p>
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+            <p className="text-sm text-yellow-800">
+              <strong>Status:</strong> PENDING
+            </p>
+            <p className="text-sm text-yellow-700 mt-2">
+              Please contact the Head Admin if you have questions about your registration status.
+            </p>
+          </div>
+          <button
+            onClick={async () => {
+              await logout();
+              navigate('/login/admin');
+            }}
+            className="w-full btn-primary"
+          >
+            Return to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Show blocking message for rejected admins
+  if (currentAdmin && !isHeadAdmin() && currentAdmin.approvalStatus === 'REJECTED') {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-white rounded-lg shadow-lg p-8">
+          <div className="flex items-center justify-center w-16 h-16 mx-auto mb-4 bg-red-100 rounded-full">
+            <XCircle className="w-8 h-8 text-red-600" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">
+            Registration Rejected
+          </h2>
+          <p className="text-gray-600 text-center mb-6">
+            Your admin registration has been rejected. Please contact the Head Admin for more information.
+          </p>
+          <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+            <p className="text-sm text-red-800">
+              <strong>Status:</strong> REJECTED
+            </p>
+            <p className="text-sm text-red-700 mt-2">
+              If you believe this is an error, please reach out to the Head Admin to discuss your application.
+            </p>
+          </div>
+          <button
+            onClick={async () => {
+              await logout();
+              navigate('/login/admin');
+            }}
+            className="w-full btn-primary"
+          >
+            Return to Login
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Guard: If currentAdmin is null (during logout/redirect), don't render anything
+  // This prevents DashboardLayout from rendering during the transition
+  if (!currentAdmin) {
+    return null;
+  }
 
   // Build nav items dynamically based on head admin status
   const navItems = [
