@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { LayoutDashboard, Users, Building2, Briefcase, FileText, Award, BarChart3, Bell, User, CheckCircle, XCircle, Eye, Search } from 'lucide-react';
 import DashboardLayout from '../../components/DashboardLayout';
@@ -413,7 +413,53 @@ function ApplicationsPage() {
 }
 
 function PlacementsPage() {
-  const { placements, students } = useApp();
+  const { placements, students, applications, jobDrives, addPlacement } = useApp();
+  const [isBackfilling, setIsBackfilling] = useState(false);
+
+  // Backfill missing placements for SELECTED applications
+  useEffect(() => {
+    const backfillMissingPlacements = async () => {
+      if (isBackfilling) return;
+      setIsBackfilling(true);
+
+      try {
+        // Find all SELECTED applications
+        const selectedApplications = applications.filter(app => app.status === 'SELECTED');
+
+        for (const app of selectedApplications) {
+          // Check if placement already exists for this student + job drive
+          const existingPlacement = placements.find(
+            p => p.studentId === app.studentId && p.jobDriveId === app.jobDriveId
+          );
+
+          if (!existingPlacement) {
+            // Get job drive details
+            const jobDrive = jobDrives.find(jd => jd.id === app.jobDriveId);
+            
+            if (jobDrive) {
+              // Create placement record
+              await addPlacement({
+                studentId: app.studentId,
+                jobDriveId: app.jobDriveId,
+                companyName: jobDrive.companyName,
+                jobRole: jobDrive.jobRole,
+                package: jobDrive.package,
+                selectionDate: app.updatedAt || new Date().toISOString(),
+                status: 'PLACED'
+              });
+              console.log(`✅ Created placement for student ${app.studentId} at ${jobDrive.companyName}`);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error backfilling placements:', error);
+      } finally {
+        setIsBackfilling(false);
+      }
+    };
+
+    backfillMissingPlacements();
+  }, [applications, placements, jobDrives, addPlacement, isBackfilling]);
 
   return (
     <div>
